@@ -14,7 +14,7 @@ def sort_by_celltype(proj):
     Returns 3 dataframes containing cells for the 3 cell types
     """
     # neurons to projections to any of the following areas are considered PT cells
-    pt_areas = ["SNr","SCm","PG","PAG","RN"]
+    pt_areas = ["AMY","SNr","SCm","PG","PAG","RN"]
  
     ds = proj
 
@@ -22,7 +22,7 @@ def sort_by_celltype(proj):
     pt_counts = ds[pt_areas].sum(axis=1)
     pt_idx = ds[pt_counts>0].index
     ds_pt = ds.loc[pt_idx,:]
-    ds_pt = ds_pt.sort_values('PAG', ascending=False)
+    ds_pt = ds_pt.sort_values(['PAG','AMY'], ascending=False)
     ds_pt['type'] = 1000
 
     # Isolate remaining non-PT cells

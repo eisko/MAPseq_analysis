@@ -5,9 +5,10 @@
 # make plots to compare number of neurons projecting to different areas using bootstrapping
 
 ########## input variables
-in_f = '/Volumes/Data/Emily/MAPseq/MAPseq_June_2022/python_clean/data_obj/acc_ds.pkl'
-out_f = '/Volumes/Data/Emily/MAPseq/MAPseq_June_2022/python_clean/figs/acc_'
-omc = False
+in_f = '/Volumes/Data/Emily/MAPseq/MAPseq_June_2022/python_clean/data_obj/omc_ds.pkl'
+out_f = '/Volumes/Data/Emily/MAPseq/MAPseq_June_2022/python_clean/figs/omc_IT_'
+omc = True
+cell_type = 10 # IT == 10, CT == 100, PT == 1000, all_cells == None
 
 ###### load packages
 import pandas as pd
@@ -17,6 +18,8 @@ from sklearn.preprocessing import binarize
 import pickle
 import seaborn as sns
 from matplotlib.colors import LogNorm, Normalize
+from fxns import sort_by_celltype
+from math import log10
 
 # set random seed
 np.random.seed(10)
@@ -30,7 +33,14 @@ bin = []
 for i in range(6):
     bin.append(pd.DataFrame(binarize(ds[i], threshold=1), columns=ds[i].columns))
 
-    
+# restrict to cell type if specified
+if cell_type:
+    for i in range(6):
+        temp = sort_by_celltype(bin[i])
+        idx = temp['type']==cell_type
+        bin[i] = temp[idx]
+        bin[i] = bin[i].drop(['type'], axis=1)
+
 
 ###### functions
 def est_proj_prob(bin_proj, reps=1000, sample_size=300):
@@ -83,11 +93,11 @@ for i in range(15):
     ax.set_ylabel('')
     # legend so know which color corresponds to which mouse
     ax.text(0.05, 0.95, mice[0], transform=ax.transAxes, fontsize=14,
-            verticalalignment='top', color=colors[1])
+            verticalalignment='top', color=colors[0])
     ax.text(0.05, 0.9, mice[1], transform=ax.transAxes, fontsize=14,
-            verticalalignment='top', color=colors[2])
+            verticalalignment='top', color=colors[1])
     ax.text(0.05, 0.85, mice[2], transform=ax.transAxes, fontsize=14,
-            verticalalignment='top', color=colors[3])
+            verticalalignment='top', color=colors[2])
     ax.text(0.05, 0.80, mice[3], transform=ax.transAxes, fontsize=14,
             verticalalignment='top', color=colors[3])
     ax.text(0.05, 0.75, mice[4], transform=ax.transAxes, fontsize=14,
@@ -120,14 +130,13 @@ for i in range(2):
     ax.axvline(steg_prob[4][area_loc[i]], color=colors[4])
     ax.axvline(steg_prob[5][area_loc[i]], color=colors[5])
     ax.set_title(regions[i])
-#     ax.set_xlabel('projection probability')
     ax.set_ylabel('')
     ax.text(0.05, 0.95, mice[0], transform=ax.transAxes, fontsize=14,
-            verticalalignment='top', color=colors[1])
+            verticalalignment='top', color=colors[0])
     ax.text(0.05, 0.9, mice[1], transform=ax.transAxes, fontsize=14,
-            verticalalignment='top', color=colors[2])
+            verticalalignment='top', color=colors[1])
     ax.text(0.05, 0.85, mice[2], transform=ax.transAxes, fontsize=14,
-            verticalalignment='top', color=colors[3])
+            verticalalignment='top', color=colors[2])
     ax.text(0.05, 0.80, mice[3], transform=ax.transAxes, fontsize=14,
             verticalalignment='top', color=colors[3])
     ax.text(0.05, 0.75, mice[4], transform=ax.transAxes, fontsize=14,
@@ -157,14 +166,13 @@ for i in range(2):
     ax.axvline(steg_prob[4][area_loc[i]], color=colors[4])
     ax.axvline(steg_prob[5][area_loc[i]], color=colors[5])
     ax.set_title(regions[i])
-#     ax.set_xlabel('projection probability')
     ax.set_ylabel('')
     ax.text(0.05, 0.95, mice[0], transform=ax.transAxes, fontsize=14,
-            verticalalignment='top', color=colors[1])
+            verticalalignment='top', color=colors[0])
     ax.text(0.05, 0.9, mice[1], transform=ax.transAxes, fontsize=14,
-            verticalalignment='top', color=colors[2])
+            verticalalignment='top', color=colors[1])
     ax.text(0.05, 0.85, mice[2], transform=ax.transAxes, fontsize=14,
-            verticalalignment='top', color=colors[3])
+            verticalalignment='top', color=colors[2])
     ax.text(0.05, 0.80, mice[3], transform=ax.transAxes, fontsize=14,
             verticalalignment='top', color=colors[3])
     ax.text(0.05, 0.75, mice[4], transform=ax.transAxes, fontsize=14,
@@ -189,14 +197,14 @@ for i in range(6):
     proj.append(proj_d)
     
 
-mm_proj_means = (proj[0] + proj[1] + proj[2])/3
+mm_proj_means = (proj[0] + proj[1] + proj[2])/3 # had to add small number to avoid np.log10(0) below
 st_proj_means = (proj[3] + proj[4] + proj[5])/3
 
 # scatterplot
 x = np.log10(mm_proj_means)
 y = np.log10(st_proj_means)
 df = pd.DataFrame({'G':x, 'GA':y})
-plt.figure(2)
+plt.figure(4)
 plt.scatter(x, y)
 plt.axline((0, 0), (1, 1),linestyle='--')
 for i in range(df.shape[0]):
@@ -240,24 +248,38 @@ else: # acc
     x2 = x[3:]
     y2 = np.delete(y, [0,1,2])
 
+
 # create dataframe so can plot region labels for points
 df = pd.DataFrame({'effect_size':x2, 'nlog10_p':y2})
 
-plt.figure(3)
+plt.figure(5)
 plt.scatter(x2,y2)
+plt.xlim([-1,1])
+plt.ylim([-0.1,4])
 plt.axline((0, 0), (0, 1),linestyle='--')
 plt.axline((0, 0), (1, 0),linestyle='--')
-# plt.axline((0, -np.log10(0.05)), (1,  -np.log10(0.05)),linestyle='--', color='r', alpha=0.75)
 plt.axline((0, -np.log10(0.01)), (1,  -np.log10(0.01)),linestyle='--', color='r', alpha=0.75)
-plt.text(0.9, -np.log10(0.01)+.01, 'p<0.01', color='r', alpha=0.75)
+plt.text(-0.9, -np.log10(0.01)+.015, 'p<0.01', color='r', alpha=0.75)
 plt.axline((0, -np.log10(0.001)), (1,  -np.log10(0.001)),linestyle='--', color='r', alpha=0.5)
-plt.text(0.9, -np.log10(0.001)+.01, 'p<0.001', color='r', alpha=0.75)
+plt.text(-0.9, -np.log10(0.001)+.015, 'p<0.001', color='r', alpha=0.75)
 
 
 for i in range(df.shape[0]):
  plt.text(x=df.effect_size[i]+0.01,y=df.nlog10_p[i]+0.01,s=df.index[i], 
           fontdict=dict(color='black',size=10))
-plt.title('Volcano Plot')
-plt.xlabel('(st_mean-mm_mean)/(mm_mean+st_mean)')
+
+title = ""
+ctype_titles = ["IT", "CT", "PT"]
+
+if omc:
+        title += "OMC"
+else:
+        title += "ACA"
+if cell_type:
+        ctype_idx = int(log10(cell_type))-1
+        title += " - " + ctype_titles[ctype_idx]
+
+plt.title(title)
+plt.xlabel('Modulation Index')
 plt.ylabel('-log10(p-value)')
 plt.savefig(out_f+'proj_prob_volcano.jpg',dpi=300, bbox_inches='tight')
