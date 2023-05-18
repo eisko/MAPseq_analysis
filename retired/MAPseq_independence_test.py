@@ -18,7 +18,7 @@ from sklearn.preprocessing import binarize
 import pickle
 import seaborn as sns
 from matplotlib.colors import LogNorm, Normalize
-from fxns import sort_by_celltype
+from mapseq_fxns import sort_by_celltype
 
 # set random seed
 np.random.seed(10)

@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import pickle
 import seaborn as sns
 from matplotlib.colors import LogNorm, Normalize
-from fxns import sort_by_celltype
+from mapseq_fxns import sort_by_celltype
 
 with open('/Volumes/Data/Emily/MAPseq/MAPseq_June_2022/python_clean/data_obj/omc_ds.pkl', 'rb') as f:
     omc_ds = pickle.load(f)    
