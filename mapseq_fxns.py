@@ -2,6 +2,8 @@
 
 import pandas as pd
 import numpy as np
+from M194_M220_metadata import *
+
 
 
 
@@ -64,3 +66,74 @@ def est_proj_prob(bin_proj, reps=1000, sample_size=300):
 #             print('finished simulation', i)
         
     return np.array(est_probs)
+
+
+def clean_up_data(df_dirty, to_drop = ['OB', 'ACAi', 'ACAc', 'HIP']):
+
+    # drop unused areas
+    dropped = df_dirty.drop(to_drop, axis=1)
+
+    # change RN to bs
+    replaced = dropped.rename(columns={'RN':'BS'})
+
+    # drop neurons w/ 0 projections after removing negative regions
+    nodes = replaced.drop(["OMCi"], axis=1).sum(axis=1)
+    n_idx = nodes > 0 # non-zero projecting neurons
+    clean = replaced[n_idx]
+    
+
+    return clean
+
+
+def df_list_to_nodes(df_list, drop = ["OMCi", "type"], species=None, meta=metadata):
+    """
+    Function to turn list of binarized dataframes per animal to dataframe 
+    containing node proportions
+
+    df_list = list of binarized dataframes
+    drop = list of column names to drop
+    mice = list of mouse names
+    species = string of species name
+    returns dataframe of node proportions
+    """
+
+    # determine which species
+    # seperate metadata by species
+    meta_mm = metadata[metadata["species"]=='MMus'].reset_index(drop=True)
+    meta_st = metadata[metadata["species"]=='STeg'].reset_index(drop=True)
+    if species == "MMus":
+        meta = meta_mm
+    elif species == "STeg":
+        meta = meta_st
+
+    nodes_list = []
+    for i in range(len(df_list)):
+        if drop == []:
+            int_df = df_list[i]
+        else:
+            int_df = df_list[i].drop(drop, axis=1)
+        nodes = int_df.sum(axis=1)
+        node_counts = nodes.value_counts().sort_index()
+        node_proportion = node_counts/node_counts.sum()
+        total = node_counts.sum()
+
+        
+
+        df_save = pd.DataFrame(node_proportion, columns=["Normalized Frequency"]).reset_index(names="Node Degree")
+        df_save["Total of cell type"] = total
+        df_save["Species"] = species
+        df_save["mouse"] = meta.loc[i,'mice']
+        df_save["Dataset"] = meta.loc[i,'dataset']
+        nodes_list.append(df_save)
+
+    node_all = pd.concat(nodes_list)
+
+    return node_all
+
+def df_to_nodes(df, drop=['OMCi']):
+    int_df = df.drop(drop, axis=1)
+    nodes = int_df.sum(axis=1)
+    node_counts = nodes.value_counts().sort_index()
+    node_proportion = node_counts/node_counts.sum()
+
+    return node_proportion
