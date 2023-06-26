@@ -7,18 +7,23 @@ from M194_M220_metadata import *
 
 
 
-def sort_by_celltype(proj):
+def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"], pt_areas=["AMY","SNr","SCm","PG","PAG","RN"]):
     """
     Function takes in projection matrix and outputs matrix sorted by the 3 major celltypes:
     - IT = intratelencephalic (projects to cortical and/or Striatum), type = 10
     - CT = corticalthalamic (projects to thalamus w/o projection to brainstem), type = 100
     - PT = pyramidal tract (projects to brainstem += other areas), type = 1000
-    Returns 3 dataframes containing cells for the 3 cell types
+    Returns single dataframe with cells sorted and labelled by 3 cell types (IT/CT/PT)
+    
+    default areas:
+    - it_areas=["OMCc", "AUD", "STR"]
+    - ct_areas=["TH"]
+    - pt_areas=["AMY","SNr","SCm","PG","PAG","RN"]
     """
-    # neurons to projections to any of the following areas are considered PT cells
-    pt_areas = ["AMY","SNr","SCm","PG","PAG","RN"]
+    
+    ds=proj
  
-    ds = proj
+    
 
     # 1. isolate PT cells
     pt_counts = ds[pt_areas].sum(axis=1)
