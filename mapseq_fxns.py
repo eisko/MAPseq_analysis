@@ -21,6 +21,7 @@ def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"], pt_
     - pt_areas=["AMY","SNr","SCm","PG","PAG","RN"]
     """
     
+    
     ds=proj
  
     
