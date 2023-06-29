@@ -2,6 +2,8 @@
 
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from M194_M220_metadata import *
 
 
@@ -31,7 +33,7 @@ def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"], pt_
     pt_idx = ds[pt_counts>0].index
     ds_pt = ds.loc[pt_idx,:]
     ds_pt = ds_pt.sort_values(['PAG','AMY'], ascending=False)
-    ds_pt['type'] = 1000
+    ds_pt['type'] = "PT"
 
     # Isolate remaining non-PT cells
     ds_npt = ds.drop(pt_idx)
@@ -40,12 +42,12 @@ def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"], pt_
     th_idx = ds_npt['TH'] > 0
     ds_th = ds_npt[th_idx]
     ds_th = ds_th.sort_values('TH', ascending=False)
-    ds_th['type'] = 100
+    ds_th['type'] = "CT"
 
     # Identify IT cells by the remaining cells (non-PT, non-CT)
     ds_nth = ds_npt[~th_idx]
     ds_nth = ds_nth.sort_values(['OMCc','AUD','STR'],ascending=False)
-    ds_nth['type'] = 10
+    ds_nth['type'] = "IT"
 
     # combine IT and CT cells
     ds_npt = pd.concat([ds_nth, ds_th])
@@ -143,3 +145,51 @@ def df_to_nodes(df, drop=['OMCi']):
     node_proportion = node_counts/node_counts.sum()
 
     return node_proportion
+
+
+####### PLOTTING FUNCTIONS
+
+def dot_bar_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequency", hueaxis="Species"):
+    """
+    Function to take pandas dataframe and plot individual values and mean/sem values
+    Intent to use for plotting nodes by frequency (in fraction of neurons)
+
+    Args:
+        df (pandas.core.frame.DataFrame): pandas dataframe where rows are nodes and columns are:
+         'Node Degreee', 'Normalized Frequency', 'Species', and 'mouse'
+         - See output of df_to_nodes
+        title (str): plot title
+    """
+    fig = plt.subplot()
+    sns.stripplot(df, xaxis="Node Degree", yaxis="Normalized Frequency", hueaxis="Species", dodge=True, jitter=False, size=3)
+    t_ax = sns.barplot(df, x=xaxis, y=yaxis, hue=hueaxis, errorbar="se", errwidth=1)
+    for patch in t_ax.patches:
+        clr = patch.get_facecolor()
+        patch.set_edgecolor(clr)
+        patch.set_facecolor((0,0,0,0))
+    plt.setp(t_ax.patches, linewidth=1)
+    plt.title(title, size=18)
+
+    return(fig)
+
+def individ_node_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequency"):
+    """Plot connected dots for individual mice colored by species
+
+    Args:
+        df (pandas dataframe): - should contain column called "Species" with data labelled
+                                as "MMus" or "STeg"
+                               - should also contain column called "Dataset w/ data labelled
+                                as "M194" or "M220"
+                               - should also contain column labelled "mouse" w/ mouse identiy
+    """
+    fig = plt.subplot()
+    sns.scatterplot(df[df['Species']=="MMus"], x=xaxis, y=yaxis, style="Dataset")
+    sns.lineplot(df[df['Species']=="MMus"], x=xaxis, y=yaxis, style="mouse", alpha=0.5)
+    sns.scatterplot(df[df['Species']=="STeg"], x=xaxis, y=yaxis, style="Dataset", color="orange", legend=False)
+    sns.lineplot(df[df['Species']=="STeg"], x=xaxis, y=yaxis, style="mouse", alpha=0.5)
+    plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
+    plt.text(2.75, 0.8, "MMus", color=sns.color_palette("tab10")[0]) # match blue to seaborn
+    plt.text(2.75, 0.76, "STeg", color=sns.color_palette("tab10")[1]) # match orange to default seaborn colors
+    plt.title(title)
+
+    return(fig)
