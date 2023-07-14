@@ -1,13 +1,13 @@
 # create custum colormaps
 import numpy as np
 # for custom colormaps
-from matplotlib import cm 
-from matplotlib.colors import ListedColormap,LinearSegmentedColormap
+from matplotlib.colors import ListedColormap
 
 # green = OMC
 # purple = ACA
-# blue = lab mo
-# create purple colormap
+# blue = Lab Mouse
+# orange = Singing mouse
+
 N = 256
 purple = np.ones((N, 4))
 purple[:, 0] = np.linspace(1, 146/256, N) # R = 146
