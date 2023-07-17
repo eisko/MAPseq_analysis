@@ -154,3 +154,44 @@ def df_list_to_nodes(df_list, drop = ["OMCi", "type"], species=None, meta=metada
     node_all = pd.concat(nodes_list)
 
     return node_all
+
+def dfs_to_proportions(df_list, drop=["OMCi", "type"], cell_type=None, meta=metadata):
+    """Output dataframe of proportions in format that can be plotted with seaborn
+
+    Args:
+        df_list (list): 
+            - List of dataframes of neurons/BC by areas
+        drop (list, optional): 
+            - Defaults to ["OMCi", "type"]
+            - list of areas/columns to drop before calculating proportions
+        cell_type (string, optional): 
+            - Specify cell types in df, either IT, CT or PT
+            - Defaults to None
+
+    Returns:
+        plot_df (pandas_dataframe):
+            - returns dataframe in format for seaborn plotting
+            - columns = areas, and other metadata
+    """
+
+    plot_df = pd.DataFrame(columns=["area", "proportion", "mice", "species", "dataset"])
+
+    if cell_type == "IT":
+        drop = ["OMCi", 'TH', 'HY', 'AMY', 'SNr', 'SCm', 'PG',
+       'PAG', 'BS']
+    elif cell_type == "PT":
+        drop = ["OMCi",'OMCc', 'AUD']
+
+    mice = meta["mice"]
+    species = meta["species"]
+    dataset = meta["dataset"]
+
+    for i in range(len(df_list)):
+        df = df_list[i].drop(drop, axis=1)
+        bc_sum = df.sum()
+        proportion = bc_sum/df.shape[0]
+        df_add = pd.DataFrame({"area":proportion.index.values, "proportion":proportion.values, 
+        "mice":mice[i], "species":species[i], "dataset":dataset[i]})
+        plot_df = pd.concat([plot_df, df_add])
+    
+    return plot_df
