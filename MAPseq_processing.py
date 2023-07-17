@@ -6,8 +6,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from M194_M220_metadata import *
+from scipy import stats
 
-def clean_up_data(df_dirty, to_drop = ['OB', 'ACAi', 'ACAc', 'HIP']):
+
+def clean_up_data(df_dirty, to_drop = ['OB', 'ACAi', 'ACAc', 'HIP'], inj_site="OMCi"):
     """Clean up datasets so all matrices are in the same format. Function 
         (1) drops unwanted columns, e.g. negative controls or dissections of other injection sites. 
         (2) renames RN (allen acronym) as BS (my brainstem acronym)
@@ -28,7 +30,7 @@ def clean_up_data(df_dirty, to_drop = ['OB', 'ACAi', 'ACAc', 'HIP']):
     replaced = dropped.rename(columns={'RN':'BS'})
 
     # 3. drop neurons w/ 0 projections after removing negative regions
-    nodes = replaced.drop(["OMCi"], axis=1).sum(axis=1)
+    nodes = replaced.drop([inj_site], axis=1).sum(axis=1)
     n_idx = nodes > 0 # non-zero projecting neurons
     clean = replaced[n_idx]
     
@@ -98,7 +100,7 @@ def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"], pt_
 
     # Identify IT cells by the remaining cells (non-PT, non-CT)
     ds_nth = ds_npt[~th_idx]
-    ds_nth = ds_nth.sort_values(['OMCc','AUD','STR'],ascending=False)
+    ds_nth = ds_nth.sort_values(it_areas,ascending=False)
     ds_nth['type'] = "IT"
 
     # combine IT and CT cells
@@ -155,7 +157,7 @@ def df_list_to_nodes(df_list, drop = ["OMCi", "type"], species=None, meta=metada
 
     return node_all
 
-def dfs_to_proportions(df_list, drop=["OMCi", "type"], cell_type=None, meta=metadata):
+def dfs_to_proportions(df_list, drop=["OMCi", "type"], cell_type=None, meta=metadata, inj_site="OMCi"):
     """Output dataframe of proportions in format that can be plotted with seaborn
 
     Args:
@@ -177,10 +179,10 @@ def dfs_to_proportions(df_list, drop=["OMCi", "type"], cell_type=None, meta=meta
     plot_df = pd.DataFrame(columns=["area", "proportion", "mice", "species", "dataset"])
 
     if cell_type == "IT":
-        drop = ["OMCi", 'TH', 'HY', 'AMY', 'SNr', 'SCm', 'PG',
+        drop = [inj_site, 'TH', 'HY', 'AMY', 'SNr', 'SCm', 'PG',
        'PAG', 'BS']
     elif cell_type == "PT":
-        drop = ["OMCi",'OMCc', 'AUD']
+        drop = [inj_site,inj_site[:-1]+"c", 'AUD']
 
     mice = meta["mice"]
     species = meta["species"]
@@ -195,3 +197,35 @@ def dfs_to_proportions(df_list, drop=["OMCi", "type"], cell_type=None, meta=meta
         plot_df = pd.concat([plot_df, df_add])
     
     return plot_df
+
+def proportion_ttest(df):
+    """output dataframe based on comparison of species proportional means
+        output dataframe can be used for making volcano plot
+
+    Args:
+        df (pd.DataFrame): output of dfs_to_proportions
+    """
+
+    areas = sorted(df['area'].unique())
+
+    # for area in areas:
+    #     area_df = df[df['area']==area]
+    #     mean = df.groupby('area', sort = False, as_index=False)['proportion'].mean()
+
+    mmus_df = df[df["species"]=="MMus"]
+    mmus_array = mmus_df.pivot(columns='mice', values='proportion', index='area').values
+
+    steg_df = df[df["species"]=="STeg"]
+    steg_array = steg_df.pivot(columns='mice', values='proportion', index='area').values
+
+    results = stats.ttest_ind(mmus_array, steg_array, axis=1)
+    p_vals = results[1]
+    plot = pd.DataFrame({"area":areas, "p-value":p_vals})
+    plot["mm_mean"] = mmus_array.mean(axis=1)
+    plot["st_mean"] = steg_array.mean(axis=1)
+    # plot["effect_size"] = (plot["st_mean"]-plot["mm_mean"]) / (plot["st_mean"] + plot["mm_mean"]) # modulation index
+    plot["fold_change"] = plot["st_mean"]/(plot["mm_mean"])
+    plot["log2_fc"] = np.log2(plot["fold_change"])
+    plot["nlog10_p"] = -np.log10(plot["p-value"])
+
+    return(plot)

@@ -9,6 +9,9 @@ from M194_M220_metadata import *
 from colormaps import *
 from MAPseq_processing import *
 from matplotlib.colors import LogNorm
+import matplotlib.lines as mlines # needed for custom legend
+from scipy import stats
+
 
 
 def dot_bar_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequency", hueaxis="Species"):
@@ -144,7 +147,7 @@ def single_neuron_line(df, neuron, figsize=(6.4, 0.5), label=None, ylim=1400,
 
 
 def proportion_polar_plot(df_list, plot_individuals=False, title=None,
-                          drop=["OMCi","STR", "TH", "type"], cell_type=None, meta=metadata): # these arguments for proportion fxn
+                          drop=["OMCi","STR", "TH", "type"], cell_type=None, meta=metadata, inj_site="OMCi"): # these arguments for proportion fxn
     """Plot polar plot where have mean +/- sem and/or indiviudal mice in circular histogram
 
     Args:
@@ -165,7 +168,7 @@ def proportion_polar_plot(df_list, plot_individuals=False, title=None,
             * Defaults to metadata. - i.e. all 12 samples
     """
     # calcualte proportion of neurons project to each area of interest
-    plot_df = dfs_to_proportions(df_list, drop=drop, cell_type=cell_type, meta=meta)
+    plot_df = dfs_to_proportions(df_list, drop=drop, cell_type=cell_type, meta=meta, inj_site=inj_site)
 
     # # set-up angles used to plot
     N = plot_df.area.unique().shape[0] # number of areas to plot
@@ -224,6 +227,79 @@ def proportion_polar_plot(df_list, plot_individuals=False, title=None,
     return(fig)
 
 
+def area_proportion_dot_plot(df, area, title=None):
+    """_summary_
+
+    Args:
+        df (DataFrame): Output from dfs_to_proportion
+        area (string): area to plot
+    """
+
+    area_df = df[df["area"]==area]
+
+    means = area_df.groupby('species')['proportion'].mean() # need means for plotting lines
+
+    fig, ax = plt.subplots()
+
+    strip = sns.stripplot(data=area_df, x="species", y="proportion", hue="species", size=10, ax=ax)
+    violin = sns.violinplot(area_df, x='species',y="proportion",
+                split=True, hue ='species', inner = None, 
+                palette="pastel",legend=False)
+    point = sns.pointplot(data=area_df, x="species", y="proportion", hue="species", units='mice', color='black', markers='+', ax=ax) # plots mean and 95 confidence interval:
+
+    mm_line = mlines.Line2D([0, 1], [means["MMus"], means["MMus"]], color=blue_cmp.colors[150])
+    st_line = mlines.Line2D([0, 1], [means["STeg"], means["STeg"]], color=orange_cmp.colors[150])
+    
+    ax.add_line(mm_line)
+    ax.add_line(st_line)
+
+    plt.title(title, size=20)
+    plt.ylim((0)) # make sure y axis starts at 0
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+
+    plt.legend(loc="upper left")
+    legend = mlines.Line2D([], [], color="black", marker="+", linewidth=0, label="mean, 95 CI")
+    plt.legend(handles=[legend])
+
+    return(fig)
+
+
+def proportion_volcano_plot(df, title=None):
+    """output volcano plot based on comparison of species proportional means
+
+    Args:
+        df (pd.DataFrame): output of proprotion_ttest
+    """
+
+    # areas = sorted(df['area'].unique())
+
+    fig = plt.subplot()
+
+    x=df.log2_fc
+    y=df.nlog10_p
+
+    plt.scatter(x,y, s=25)
+    # plt.xlim([-1,1])
+    # plt.ylim([-0.1,4])
+    plt.axline((0, 0), (0, 1),linestyle='--', linewidth=0.5)
+    plt.axline((0, 0), (1, 0),linestyle='--', linewidth=0.5)
+    plt.axline((0, -np.log10(0.05)), (1,  -np.log10(0.05)),linestyle='--', color='r', alpha=0.75, linewidth=0.5)
+    plt.text(-0.1, -np.log10(0.05)+.015, 'p<0.05', color='r', alpha=0.75)
+    plt.axline((0, -np.log10(0.01)), (1,  -np.log10(0.01)),linestyle='--', color='r', alpha=0.5, linewidth=0.5)
+    plt.text(-0.1, -np.log10(0.01)+.015, 'p<0.01', color='r', alpha=0.75)
+
+
+    for i in range(df.shape[0]):
+        plt.text(x=df.log2_fc[i]+0.01,y=df.nlog10_p[i]+0.01,s=df.area[i], 
+            fontdict=dict(color='black',size=10))
+
+
+    plt.title(title)
+    plt.xlabel('log2(fold change)')
+    plt.ylabel('-log10(p-value)')
+
+    return(fig)
 
 
 
