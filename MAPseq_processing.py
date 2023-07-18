@@ -114,48 +114,48 @@ def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"], pt_
     return sorted
 
 
-def df_list_to_nodes(df_list, drop = ["OMCi", "type"], species=None, meta=metadata):
+def dfs_to_node_proportions(df_list, drop=["OMCi", "type"], cell_type=None, meta=metadata, inj_site="OMCi"):
+    """Output dataframe of proportions of each node degree in format that can be plotted with seaborn
+
+    Args:
+        df_list (list): 
+            - List of dataframes of neurons/BC by areas
+        drop (list, optional): 
+            - Defaults to ["OMCi", "type"]
+            - list of areas/columns to drop before calculating proportions
+        cell_type (string, optional): 
+            - Specify cell types in df, either IT, CT or PT
+            - Defaults to None
+
+    Returns:
+        plot_df (pandas_dataframe):
+            - returns dataframe in format for seaborn plotting
+            - columns = node_degree, node degree proportion, total cell count, and other metadata
     """
-    Function to turn list of binarized dataframes per animal to dataframe 
-    containing node proportions
 
-    df_list = list of binarized dataframes
-    drop = list of column names to drop
-    mice = list of mouse names
-    species = string of species name
-    returns dataframe of node proportions
-    """
+    plot_df = pd.DataFrame(columns=["node_degree", "proportion", "count", "mice", "species", "dataset"])
 
-    # determine which species
-    # seperate metadata by species
-    meta_mm = metadata[metadata["species"]=='MMus'].reset_index(drop=True)
-    meta_st = metadata[metadata["species"]=='STeg'].reset_index(drop=True)
-    if species == "MMus":
-        meta = meta_mm
-    elif species == "STeg":
-        meta = meta_st
+    if cell_type == "IT":
+        drop = [inj_site, 'TH', 'HY', 'AMY', 'SNr', 'SCm', 'PG',
+       'PAG', 'BS']
+    elif cell_type == "PT":
+        drop = [inj_site,inj_site[:-1]+"c", 'AUD']
 
-    nodes_list = []
+    mice = meta["mice"]
+    species = meta["species"]
+    dataset = meta["dataset"]
+
     for i in range(len(df_list)):
-        if drop == []:
-            int_df = df_list[i]
-        else:
-            int_df = df_list[i].drop(drop, axis=1)
-        nodes = int_df.sum(axis=1)
+        df = df_list[i].drop(drop, axis=1)
+        nodes = df.sum(axis=1)
         node_counts = nodes.value_counts().sort_index()
         node_proportion = node_counts/node_counts.sum()
-        total = node_counts.sum()
-
-        df_save = pd.DataFrame(node_proportion, columns=["Normalized Frequency"]).reset_index(names="Node Degree")
-        df_save["Total of cell type"] = total
-        df_save["Species"] = species
-        df_save["mouse"] = meta.loc[i,'mice']
-        df_save["Dataset"] = meta.loc[i,'dataset']
-        nodes_list.append(df_save)
-
-    node_all = pd.concat(nodes_list)
-
-    return node_all
+        # total = node_counts.sum()
+        df_add = pd.DataFrame({"node_degree":node_counts.index.values, "proportion":node_proportion.values, 
+        "count":node_counts, "mice":mice[i], "species":species[i], "dataset":dataset[i]})
+        plot_df = pd.concat([plot_df, df_add])
+    
+    return plot_df
 
 def dfs_to_proportions(df_list, drop=["OMCi", "type"], cell_type=None, meta=metadata, inj_site="OMCi"):
     """Output dataframe of proportions in format that can be plotted with seaborn

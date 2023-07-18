@@ -218,7 +218,7 @@ def proportion_polar_plot(df_list, plot_individuals=False, title=None,
         plt.polar(angles, v_mean, color=sp_cmp.colors[255], label = 'mean')
         plt.polar(angles, v_mean_sem, color=sp_cmp.colors[100], linestyle = '--', linewidth=0.9, label = 'sem')
         plt.polar(angles, v_sem_mean, color=sp_cmp.colors[100], linestyle = '--', linewidth=0.9)
-
+    
     plt.xticks(angles[:-1], plot_df.area.unique())
     plt.yticks([-2,-1.5,-1,-0.5],['$10^{-2}$','$10^{-1.5}$','$10^{-1}$','$10^{-0.5}$'])
     plt.legend(bbox_to_anchor=(1.3, 1.05))
@@ -302,6 +302,27 @@ def proportion_volcano_plot(df, title=None):
     return(fig)
 
 
+def proportion_node_stacked_bars(df, title=None):
+    """given dataframe, plot stacked barchart of proportion of each node degree by species
 
+    Args:
+        df (pd.DataFrame): Output of dfs_to_node_proportions
+        title (str, optional): title of plot. Defaults to None.
+    """
+    # fig = plt.subplot()
+
+    plot_df = pd.DataFrame(columns=df[df["species"]=="MMus"]['node_degree'], index=["Mmus", "STeg"])
+    plot_df.loc["Mmus",:] = df[df["species"]=="MMus"]["proportion"]
+    plot_df.loc["STeg",:] = df[df["species"]=="STeg"]["proportion"]
+
+    plot_df.plot(kind='bar', stacked=True)
+    plt.legend(bbox_to_anchor=(1.05, 0.95), loc='upper left', borderaxespad=0, title="Node degree")
+    plt.gca().set_aspect(5)
+    plt.gca().spines['top'].set_visible(False)
+    plt.gca().spines['right'].set_visible(False)
+    plt.ylabel("proportion")
+    plt.title(title)
+
+    # return(fig)
 
 
