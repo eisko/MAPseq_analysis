@@ -229,3 +229,36 @@ def proportion_ttest(df):
     plot["nlog10_p"] = -np.log10(plot["p-value"])
 
     return(plot)
+
+def calc_PAB(df, drop=["OMCi", "type"], cell_type=None, inj_site="OMCi"):
+    """Calculate probability of neuron projecting to A given it projects to B
+        Output is array that can be turned into heatmap, and list of areas to use as axis labels
+
+    Args:
+        df (pd.DataFrame): Binary df, BC x area
+        drop (list, optional): List of areas to not include in PAB. Defaults to ["OMCi", "type"].
+    """
+
+    if cell_type == "IT":
+        drop = [inj_site, 'TH', 'HY', 'AMY', 'SNr', 'SCm', 'PG',
+       'PAG', 'BS']
+    elif cell_type == "PT":
+        drop = [inj_site,inj_site[:-1]+"c", 'AUD']
+
+    drop_df = df.drop(drop, axis=1)
+    areas = drop_df.columns
+
+    PAB = np.zeros((len(areas), len(areas)))
+
+    for i in range(len(areas)):
+        for j in range(len(areas)):
+            areai = areas[i]
+            areaj = areas[j]
+            if drop_df[areaj].sum() != 0: # create conditional so avoid divide by zero
+
+                union = drop_df[areai] + drop_df[areaj]
+                overlap = union==2
+                n_overlap = overlap.sum()
+                total = drop_df[areaj].sum()
+                PAB[i,j] = n_overlap/total
+    return(PAB, areas)

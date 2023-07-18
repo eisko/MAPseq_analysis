@@ -325,4 +325,22 @@ def proportion_node_stacked_bars(df, title=None):
 
     # return(fig)
 
+def pab_heatmap(array, areas, title=None):
+    """Make P(A|B) heatmap, give output from calc_PAB()
+        return heatmap
+
+    Args:
+        array (np.Array): array of P(A|B) where columns=A and rows=B
+        title (str, optional): Plot title. Defaults to None.
+    """
+
+    fig = plt.subplot()
+
+    sns.heatmap(array, yticklabels=areas, xticklabels=areas, cbar_kws={'label': 'P(B|A)'})
+    plt.ylabel("B")
+    plt.xlabel("A")
+    plt.title(title)
+
+    return(fig)
+
 
