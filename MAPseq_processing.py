@@ -8,6 +8,9 @@ import seaborn as sns
 from M194_M220_metadata import *
 from scipy import stats
 
+from itertools import combinations, chain
+from upsetplot import from_memberships
+from math import comb
 
 def clean_up_data(df_dirty, to_drop = ['OB', 'ACAi', 'ACAc', 'HIP'], inj_site="OMCi"):
     """Clean up datasets so all matrices are in the same format. Function 
@@ -86,7 +89,7 @@ def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"], pt_
     pt_counts = ds[pt_areas].sum(axis=1)
     pt_idx = ds[pt_counts>0].index
     ds_pt = ds.loc[pt_idx,:]
-    ds_pt = ds_pt.sort_values(['PAG','AMY'], ascending=False)
+    # ds_pt = ds_pt.sort_values(['PAG','AMY'], ascending=False)
     ds_pt['type'] = "PT"
 
     # Isolate remaining non-PT cells
@@ -114,7 +117,7 @@ def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"], pt_
     return sorted
 
 
-def dfs_to_node_proportions(df_list, drop=["OMCi", "type"], cell_type=None, meta=metadata, inj_site="OMCi"):
+def dfs_to_node_proportions(df_list, drop=["OMCi", "type"], keep=None, cell_type=None, meta=metadata, inj_site="OMCi"):
     """Output dataframe of proportions of each node degree in format that can be plotted with seaborn
 
     Args:
@@ -123,6 +126,9 @@ def dfs_to_node_proportions(df_list, drop=["OMCi", "type"], cell_type=None, meta
         drop (list, optional): 
             - Defaults to ["OMCi", "type"]
             - list of areas/columns to drop before calculating proportions
+        keep (list, optionl):
+            - if present, only keep selected columns
+            - Defaults to None.
         cell_type (string, optional): 
             - Specify cell types in df, either IT, CT or PT
             - Defaults to None
@@ -130,16 +136,19 @@ def dfs_to_node_proportions(df_list, drop=["OMCi", "type"], cell_type=None, meta
     Returns:
         plot_df (pandas_dataframe):
             - returns dataframe in format for seaborn plotting
-            - columns = node_degree, node degree proportion, total cell count, and other metadata
+            - columns = node_degree, node degree proportion, total cell count, percentage, and other metadata
     """
 
-    plot_df = pd.DataFrame(columns=["node_degree", "proportion", "count", "mice", "species", "dataset"])
+    plot_df = pd.DataFrame(columns=["node_degree", "proportion", "count", "percentage", "mice", "species", "dataset"])
 
     if cell_type == "IT":
         drop = [inj_site, 'TH', 'HY', 'AMY', 'SNr', 'SCm', 'PG',
        'PAG', 'BS']
     elif cell_type == "PT":
         drop = [inj_site,inj_site[:-1]+"c", 'AUD']
+    
+    if keep:
+        drop = [] # if only selecting few columns, don't need drop
 
     mice = meta["mice"]
     species = meta["species"]
@@ -147,17 +156,20 @@ def dfs_to_node_proportions(df_list, drop=["OMCi", "type"], cell_type=None, meta
 
     for i in range(len(df_list)):
         df = df_list[i].drop(drop, axis=1)
+        if keep:
+            df = df.loc[:, keep]
         nodes = df.sum(axis=1)
         node_counts = nodes.value_counts().sort_index()
         node_proportion = node_counts/node_counts.sum()
+        node_percentage = node_proportion*100
         # total = node_counts.sum()
         df_add = pd.DataFrame({"node_degree":node_counts.index.values, "proportion":node_proportion.values, 
-        "count":node_counts, "mice":mice[i], "species":species[i], "dataset":dataset[i]})
+        "count":node_counts, "percentage":node_percentage.values, "mice":mice[i], "species":species[i], "dataset":dataset[i]})
         plot_df = pd.concat([plot_df, df_add])
     
     return plot_df
 
-def dfs_to_proportions(df_list, drop=["OMCi", "type"], cell_type=None, meta=metadata, inj_site="OMCi"):
+def dfs_to_proportions(df_list, drop=["OMCi", "type"], keep=None, cell_type=None, meta=metadata, inj_site="OMCi"):
     """Output dataframe of proportions in format that can be plotted with seaborn
 
     Args:
@@ -184,12 +196,17 @@ def dfs_to_proportions(df_list, drop=["OMCi", "type"], cell_type=None, meta=meta
     elif cell_type == "PT":
         drop = [inj_site,inj_site[:-1]+"c", 'AUD']
 
+    if keep:
+        drop = []
+
     mice = meta["mice"]
     species = meta["species"]
     dataset = meta["dataset"]
 
     for i in range(len(df_list)):
         df = df_list[i].drop(drop, axis=1)
+        if keep:
+            df = df.loc[:, keep] # just subset keep columns
         bc_sum = df.sum()
         proportion = bc_sum/df.shape[0]
         df_add = pd.DataFrame({"area":proportion.index.values, "proportion":proportion.values, 
@@ -262,3 +279,38 @@ def calc_PAB(df, drop=["OMCi", "type"], cell_type=None, inj_site="OMCi"):
                 total = drop_df[areaj].sum()
                 PAB[i,j] = n_overlap/total
     return(PAB, areas)
+
+def df_to_motif_proportion(df, areas, proportion=True):
+    """Plot upset plot based on given data and area list
+
+    Args:
+        df (pd.DataFrame): df containing bc x area
+        areas (list): List of areas (str) to be plotted
+    """
+
+    # generate all combinations of areas in true/false list
+    area_comb = []
+    for i in range(len(areas)):
+        n = i+1
+        area_comb.append(list(combinations(areas, n)))
+
+    area_comb_list = list(chain.from_iterable(area_comb)) # flatten list
+    memberships = from_memberships(area_comb_list) # generate true/false
+    area_comb_TF = memberships.index.values # extract array w/ true/false values
+    area_comb_names = memberships.index.names # get order of areas
+
+    # calculate number of neurons of each motif
+    comb_count = []
+    for tf in area_comb_TF:
+        neurons = df
+        for i in range(len(area_comb_names)):
+            # subset dataset on presence/absence of proj
+            neurons = neurons[neurons[area_comb_names[i]]==tf[i]]
+        if proportion: # return proportion
+            comb_count.append(neurons.shape[0]/df.shape[0])
+        else: # return count
+            comb_count.append(neurons.shape[0])
+
+    plot_s = from_memberships(area_comb_list, data=comb_count)
+
+    return(plot_s)

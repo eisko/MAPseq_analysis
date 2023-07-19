@@ -12,6 +12,8 @@ from matplotlib.colors import LogNorm
 import matplotlib.lines as mlines # needed for custom legend
 from scipy import stats
 
+# for upset plots
+import upsetplot
 
 
 def dot_bar_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequency", hueaxis="Species"):
@@ -147,7 +149,8 @@ def single_neuron_line(df, neuron, figsize=(6.4, 0.5), label=None, ylim=1400,
 
 
 def proportion_polar_plot(df_list, plot_individuals=False, title=None,
-                          drop=["OMCi","STR", "TH", "type"], cell_type=None, meta=metadata, inj_site="OMCi"): # these arguments for proportion fxn
+                          drop=["OMCi","STR", "TH", "type"], keep=None, cell_type=None, 
+                          meta=metadata, log_norm=True, inj_site="OMCi"): # these arguments for proportion fxn
     """Plot polar plot where have mean +/- sem and/or indiviudal mice in circular histogram
 
     Args:
@@ -160,6 +163,9 @@ def proportion_polar_plot(df_list, plot_individuals=False, title=None,
             * list of brain areas NOT to include when calculating proportion, input to 
                 dfs_to_proportions function
             * Defaults to ["OMCi","type"].
+        keep (list, optionl):
+            * if present, only keep selected columns
+            * Defaults to None.
         cell_type (string, optional): 
             * specify whether looking at all cells vs. just IT/CT/PT
             * Defaults to None. inputs can be "IT", "CT", or "PT"
@@ -168,7 +174,7 @@ def proportion_polar_plot(df_list, plot_individuals=False, title=None,
             * Defaults to metadata. - i.e. all 12 samples
     """
     # calcualte proportion of neurons project to each area of interest
-    plot_df = dfs_to_proportions(df_list, drop=drop, cell_type=cell_type, meta=meta, inj_site=inj_site)
+    plot_df = dfs_to_proportions(df_list, drop=drop, keep=keep, cell_type=cell_type, meta=meta, inj_site=inj_site)
 
     # # set-up angles used to plot
     N = plot_df.area.unique().shape[0] # number of areas to plot
@@ -195,7 +201,8 @@ def proportion_polar_plot(df_list, plot_individuals=False, title=None,
                 int = df[df['mice']== mice[i]]
                 values = int.proportion
                 values.loc[len(values)+1] = values.loc[0]
-                values = np.log10(values)
+                if log_norm:
+                    values = np.log10(values)
                 plt.polar(angles, values, color=sp_cmp.colors[50], label=mice[i])
 
        
@@ -204,6 +211,7 @@ def proportion_polar_plot(df_list, plot_individuals=False, title=None,
         sem = df.groupby('area', sort = False, as_index=False)['proportion'].sem()
         mean_sem = mean['proportion'] + sem['proportion']
         sem_mean = mean['proportion'] - sem['proportion']
+        mean = mean['proportion']
 
         # add first entry to end to complete polar cirle
         mean.loc[len(mean)+1] = mean.loc[0]
@@ -211,16 +219,18 @@ def proportion_polar_plot(df_list, plot_individuals=False, title=None,
         sem_mean.loc[len(sem_mean)+1] = sem_mean.loc[0]
 
         # put proportions on log scale
-        v_mean = np.log10(mean["proportion"])
-        v_mean_sem = np.log10(mean_sem)
-        v_sem_mean = np.log10(sem_mean)
+        if log_norm:
+            mean = np.log10(mean)
+            mean_sem = np.log10(mean_sem)
+            sem_mean = np.log10(sem_mean)
 
-        plt.polar(angles, v_mean, color=sp_cmp.colors[255], label = 'mean')
-        plt.polar(angles, v_mean_sem, color=sp_cmp.colors[100], linestyle = '--', linewidth=0.9, label = 'sem')
-        plt.polar(angles, v_sem_mean, color=sp_cmp.colors[100], linestyle = '--', linewidth=0.9)
+        plt.polar(angles, mean, color=sp_cmp.colors[255], label = 'mean')
+        plt.polar(angles, mean_sem, color=sp_cmp.colors[100], linestyle = '--', linewidth=0.9, label = 'sem')
+        plt.polar(angles, sem_mean, color=sp_cmp.colors[100], linestyle = '--', linewidth=0.9)
     
     plt.xticks(angles[:-1], plot_df.area.unique())
-    plt.yticks([-2,-1.5,-1,-0.5],['$10^{-2}$','$10^{-1.5}$','$10^{-1}$','$10^{-0.5}$'])
+    if log_norm:
+        plt.yticks([-2,-1.5,-1,-0.5],['$10^{-2}$','$10^{-1.5}$','$10^{-1}$','$10^{-0.5}$'])
     plt.legend(bbox_to_anchor=(1.3, 1.05))
     plt.title(title)
 
@@ -342,5 +352,24 @@ def pab_heatmap(array, areas, title=None, cmap=None):
     plt.title(title)
 
     return(fig)
+
+
+def upset_plot(plot_s, title=None, suptitle=None, facecolor="tab:blue", shading_color="lightgray",
+               ymin=0, ymax=0.5):
+    """upset plot with specialized parameters
+
+    Args:
+        plot_s (Pandas series?): output of from_membership() from upsetplot package
+        face_color (str, optional): Color for bars, only takes string colors. Defaults to "tab:blue".
+        shading_color (str, optional): only takes strings. Defaults to "lightgray".
+    """
+
+    # fig = plt.subplot()
+    upsetplot.plot(plot_s, facecolor=facecolor, shading_color=shading_color)
+    plt.title(title, fontsize=18)
+    plt.suptitle(suptitle, x=0.56, y=0.88, fontsize=10)
+    plt.ylim(ymin, ymax)
+    
+    # return(fig)
 
 
