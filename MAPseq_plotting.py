@@ -10,6 +10,7 @@ from colormaps import *
 from MAPseq_processing import *
 from matplotlib.colors import LogNorm
 import matplotlib.lines as mlines # needed for custom legend
+from matplotlib.patches import Patch # needed for custom legend
 from scipy import stats
 
 # for upset plots
@@ -373,3 +374,23 @@ def upset_plot(plot_s, title=None, suptitle=None, facecolor="tab:blue", shading_
     # return(fig)
 
 
+def fold_change_ranked(plot, title=None, suptitle=None,
+                       x="area", y="log2_fc", it_color="tan", pt_color="dimgrey"):
+    
+    fig = plt.subplot()
+    cols = []
+    for type in plot['type']:
+        if type=="IT":
+            cols.append("tan")
+        else:
+            cols.append("dimgrey")
+
+    legend_elements = [Patch(facecolor=it_color, label='IT Cells'),
+                    Patch(facecolor=pt_color, label='PT Cells')]
+
+    sns.barplot(plot, x=x, y=y, palette=cols)
+    plt.legend(handles=legend_elements)
+    plt.suptitle(suptitle, size=18)
+    plt.title(title, size=10)
+    plt.ylabel("Log2(r'\frac{Steg}{\MMus}$')")
+    return(fig)

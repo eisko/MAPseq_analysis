@@ -314,3 +314,30 @@ def df_to_motif_proportion(df, areas, proportion=True):
     plot_s = from_memberships(area_comb_list, data=comb_count)
 
     return(plot_s)
+
+def fold_change_calc(df_type, meta=metadata, drop=["OMCi","type"], inj_site="OMCi"):
+    """Take df_list with cells label by type, calculate fold change b/w 2 groups.
+        return dataframe to be plotted by fold change and colored by cell type
+
+    Args:
+        df_type (list): List of bc x area
+        meta (DataFrame): dataframe of metadata of df_list
+    """
+
+    # get it cells
+    cell_type = ["IT", "PT"]
+    plot_fin = []
+    for c in cell_type:
+        df_ct = [df[df["type"]==c].drop("type", axis=1) for df in df_type]
+        plot_ct = dfs_to_proportions(df_ct, cell_type=c, drop=drop, inj_site=inj_site)
+        vplot_ct = proportion_ttest(plot_ct)
+        # exclude str and th
+        vplot_ct = vplot_ct[~(vplot_ct['area']=="STR") & ~(vplot_ct['area']=="TH")]
+        vplot_ct['type'] = c
+        plot_fin.append(vplot_ct)
+
+    plot = pd.concat(plot_fin)
+    plot = plot.sort_values("log2_fc", ascending=False).reset_index(drop=True)
+    return plot
+
+    
