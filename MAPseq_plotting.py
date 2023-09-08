@@ -17,7 +17,8 @@ from scipy import stats
 import upsetplot
 
 
-def dot_bar_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequency", hueaxis="Species"):
+def dot_bar_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequency", 
+                 hueaxis="Species", errorbar="se"):
     """
     Function to take pandas dataframe and plot individual values and mean/sem values
     Intent to use for plotting nodes by frequency (in fraction of neurons)
@@ -30,7 +31,7 @@ def dot_bar_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequency"
     """
     fig = plt.subplot()
     sns.stripplot(df, x=xaxis, y=yaxis, hue=hueaxis, dodge=True, jitter=False, size=3)
-    t_ax = sns.barplot(df, x=xaxis, y=yaxis, hue=hueaxis, errorbar="se", errwidth=1)
+    t_ax = sns.barplot(df, x=xaxis, y=yaxis, hue=hueaxis, errorbar=errorbar, errwidth=1)
     for patch in t_ax.patches:
         clr = patch.get_facecolor()
         patch.set_edgecolor(clr)
@@ -393,4 +394,68 @@ def fold_change_ranked(plot, title=None, suptitle=None,
     plt.suptitle(suptitle, size=18)
     plt.title(title, size=10)
     plt.ylabel("Log2(r'\frac{Steg}{\MMus}$')")
+    return(fig)
+
+def stvmm_area_scatter(data, title="", to_plot="proportion", log=False, 
+                       err="sem", ax_limits=None, axis_label="Proportion"):
+    """Plots lab mouse v. singing moues scatter w/ unity line
+
+    Args:
+        data (pandas.dataframe): output of calc_fluor
+        to_plot (str, optional): Label of column in data to plot. Defaults to "Fluorescence".
+    """
+
+    # separate by species
+    data_st = data[data["species"]=="STeg"]
+    data_mm = data[data["species"]=="MMus"]
+
+    # calculate means
+    st_mean = data_st.groupby("area").mean(numeric_only=True)
+    mm_mean = data_mm.groupby("area").mean(numeric_only=True)
+
+    # calculate error
+    if err=="sem":
+        st_err = data_st.groupby("area").sem(numeric_only=True)
+        mm_err = data_mm.groupby("area").sem(numeric_only=True)
+    elif err=="std":
+        st_err = data_st.groupby("area").std(numeric_only=True)
+        mm_err = data_mm.groupby("area").std(numeric_only=True)
+
+
+    fig = plt.subplot()
+
+    plt.errorbar(st_mean[to_plot], mm_mean[to_plot], 
+            xerr=st_err[to_plot], fmt='|', color="orange")
+    plt.errorbar(st_mean[to_plot], mm_mean[to_plot], 
+            yerr=mm_err[to_plot], fmt='|')
+
+    # add area labels
+    labels = list(st_mean.index)
+    for i in range(len(labels)):
+        plt.annotate(labels[i], (st_mean[to_plot][i], mm_mean[to_plot][i]))
+    
+    # set x and y lims so that starts at 0,0
+    if ax_limits:
+        plt.xlim(ax_limits)
+        plt.ylim(ax_limits)
+
+
+    # adjust scale
+    if log:
+        plt.xscale("log")
+        plt.yscale("log")
+
+    # plot unity line
+    x = np.linspace(0,1, 5)
+    y = x
+    plt.plot(x, y, color='red', linestyle="--", linewidth=0.5)
+
+
+    # add axis labels
+    plt.xlabel("Singing Mouse "+axis_label, color="tab:orange")
+    plt.ylabel("Lab Mouse "+axis_label, color="tab:blue")
+
+    # add title
+    plt.title(title)
+
     return(fig)
