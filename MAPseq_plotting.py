@@ -277,7 +277,7 @@ def area_proportion_dot_plot(df, area, title=None):
     return(fig)
 
 
-def proportion_volcano_plot(df, title=None):
+def proportion_volcano_plot(df, title=None, labels="area", p_05=True, p_01=True, p_bf=None):
     """output volcano plot based on comparison of species proportional means
 
     Args:
@@ -294,16 +294,24 @@ def proportion_volcano_plot(df, title=None):
     plt.scatter(x,y, s=25)
     # plt.xlim([-1,1])
     # plt.ylim([-0.1,4])
+    # plot 0 axes
     plt.axline((0, 0), (0, 1),linestyle='--', linewidth=0.5)
     plt.axline((0, 0), (1, 0),linestyle='--', linewidth=0.5)
-    plt.axline((0, -np.log10(0.05)), (1,  -np.log10(0.05)),linestyle='--', color='r', alpha=0.75, linewidth=0.5)
-    plt.text(-0.1, -np.log10(0.05)+.015, 'p<0.05', color='r', alpha=0.75)
-    plt.axline((0, -np.log10(0.01)), (1,  -np.log10(0.01)),linestyle='--', color='r', alpha=0.5, linewidth=0.5)
-    plt.text(-0.1, -np.log10(0.01)+.015, 'p<0.01', color='r', alpha=0.75)
+
+    # p_05
+    if p_05:
+        plt.axline((0, -np.log10(0.05)), (1,  -np.log10(0.05)),linestyle='--', color='r', alpha=0.75, linewidth=0.5)
+        plt.text(-0.1, -np.log10(0.05)+.015, 'p<0.05', color='r', alpha=0.75)
+    if p_01:
+        plt.axline((0, -np.log10(0.01)), (1,  -np.log10(0.01)),linestyle='--', color='r', alpha=0.5, linewidth=0.5)
+        plt.text(-0.1, -np.log10(0.01)+.015, 'p<0.01', color='r', alpha=0.75)
+    if p_bf:
+        plt.axline((0, -np.log10(p_bf)), (1,  -np.log10(p_bf)),linestyle='--', color='r', alpha=0.75, linewidth=0.5)
+        plt.text(-0.1, -np.log10(p_bf)+.015, 'p<bf_01', color='r', alpha=0.75)
 
 
     for i in range(df.shape[0]):
-        plt.text(x=df.log2_fc[i]+0.01,y=df.nlog10_p[i]+0.01,s=df.area[i], 
+        plt.text(x=df.log2_fc[i]+0.01,y=df.nlog10_p[i]+0.01,s=df.loc[i, labels], 
             fontdict=dict(color='black',size=10))
 
 
