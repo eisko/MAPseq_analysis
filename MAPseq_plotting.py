@@ -12,6 +12,7 @@ from matplotlib.colors import LogNorm
 import matplotlib.lines as mlines # needed for custom legend
 from matplotlib.patches import Patch # needed for custom legend
 from scipy import stats
+import matplotlib.patches as mpatches  # Import patches to create custom legend markers
 
 # for upset plots
 import upsetplot
@@ -318,6 +319,73 @@ def proportion_volcano_plot(df, title=None, labels="area", p_05=True, p_01=True,
     plt.title(title)
     plt.xlabel('log2(fold change)')
     plt.ylabel('-log10(p-value)')
+
+    return(fig)
+
+def plot_volcano(df, x="log2_fc", y="nlog10_p", title=None, labels="area", shape=None,
+                 p_05=True, p_01=True, p_bf=None):
+    """output volcano plot based on comparison of species proportional means
+
+    Args:
+        df (pd.DataFrame): output of proprotion_ttest
+    """
+
+    # areas = sorted(df['area'].unique())
+
+    fig = plt.subplot()
+
+    marker_order = ['o', 'D', 'v']
+    if shape:
+        nshapes = df[shape].unique()
+        for i in range(nshapes.shape[0]):
+            dfn = df[df[shape]==nshapes[i]]
+            plt.scatter(dfn[x], dfn[y], label=nshapes[i],
+                        marker=marker_order[i], s=25, c="black")
+        
+
+        # #  Create custom legend labels
+        # point1 = line2D([0], [0], label=)
+
+        # # Create custom legend markers using patches
+        # circle_marker = mpatches.Patch(color='black', marker='o', label=legend_labels[0])
+        # diamond_marker = mpatches.Patch(color='black', marker='D', label=legend_labels[1])
+
+        # # Create a custom legend using handles and labels
+        # plt.legend(handles=[circle_marker, diamond_marker], labels=legend_labels, loc='upper right')
+
+    else:
+        plt.scatter(df[x],df[y], s=25)
+
+
+    # plt.xlim([-1,1])
+    # plt.ylim([-0.1,4])
+    # plot 0 axes
+    plt.axline((0, 0), (0, 1),linestyle='--', linewidth=0.5)
+    plt.axline((0, 0), (1, 0),linestyle='--', linewidth=0.5)
+
+    # p_05
+    if p_05:
+        plt.axline((0, -np.log10(0.05)), (1,  -np.log10(0.05)),linestyle='--', color='r', alpha=0.75, linewidth=0.5)
+        plt.text(-0.1, -np.log10(0.05)+.015, 'p<0.05', color='r', alpha=0.75)
+    if p_01:
+        plt.axline((0, -np.log10(0.01)), (1,  -np.log10(0.01)),linestyle='--', color='r', alpha=0.5, linewidth=0.5)
+        plt.text(-0.1, -np.log10(0.01)+.015, 'p<0.01', color='r', alpha=0.75)
+    if p_bf:
+        plt.axline((0, -np.log10(p_bf)), (1,  -np.log10(p_bf)),linestyle='--', color='r', alpha=0.75, linewidth=0.5)
+        plt.text(-0.1, -np.log10(p_bf)+.015, 'p<bf_01', color='r', alpha=0.75)
+
+
+    for i in range(df.shape[0]):
+        plt.text(x=df.loc[i,"log2_fc"]+0.01,y=df.loc[i,"nlog10_p"]+0.01,s=df.loc[i, labels], 
+            fontdict=dict(color='black',size=10))
+
+
+    plt.title(title)
+    plt.xlabel('log2(fold change)')
+    plt.ylabel('-log10(p-value)')
+
+    handles, labels = plt.gca().get_legend_handles_labels()
+    plt.legend(handles=handles, loc="upper left")
 
     return(fig)
 
