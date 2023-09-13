@@ -11,6 +11,7 @@ from scipy import stats
 from itertools import combinations, chain
 from upsetplot import from_memberships
 from math import comb
+import math
 
 def clean_up_data(df_dirty, to_drop = ['OB', 'ACAi', 'ACAc', 'HIP'], inj_site="OMCi"):
     """Clean up datasets so all matrices are in the same format. Function 
@@ -69,7 +70,7 @@ def dfs_preprocess_counts(df_list, drop=["OMCi", "type"]):
     return out_list
 
 
-def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"], pt_areas=["AMY","SNr","SCm","PG","PAG","BS"]):
+def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"], pt_areas=["AMY","HY","SNr","SCm","PG","PAG","BS"]):
     """
     Function takes in projection matrix and outputs matrix sorted by the 3 major celltypes:
     - IT = intratelencephalic (projects to cortical and/or Striatum), type = 10
@@ -341,3 +342,98 @@ def fold_change_calc(df_type, meta=metadata, drop=["OMCi","type"], inj_site="OMC
     return plot
 
     
+def stvmm_calc_stats(data, to_plot="proportion"):
+    """calculate statistics on to_plot column per species
+
+    Args:
+        data (pd.DataFrame): _description_
+        to_plot (str, optional): Column to calculate statistics on. Defaults to "proportion".
+    """
+
+    # separate by species
+    data_st = data[data["species"]=="STeg"]
+    data_mm = data[data["species"]=="MMus"]
+
+    # calculate stats
+    st_stats = data_st.groupby(["area"])[to_plot].agg(['mean', 'count', 'std', 'sem'])
+    mm_stats = data_mm.groupby(["area"])[to_plot].agg(['mean', 'count', 'std', 'sem'])
+
+    ci95 = []
+    for i in st_stats.index:
+        m, c, sd, se = st_stats.loc[i]
+        ci95.append(1.96*sd/math.sqrt(c))
+    st_stats['ci95'] = ci95
+
+    ci95 = []
+    for i in mm_stats.index:
+        m, c, sd, se = mm_stats.loc[i]
+        ci95.append(1.96*sd/math.sqrt(c))
+    mm_stats['ci95'] = ci95
+
+    st_stats['species'] = "STeg"
+    mm_stats['species'] = "MMus"
+
+    return(pd.concat([st_stats, mm_stats]))
+
+def stvmm_calc_ttest(data):
+    """Given dataset w/ labeled cell type and species, calculate ttest p-values b/w species replicates
+
+    Args:
+        data (DataFrame): _description_
+    """
+    
+
+    # separate by cell type
+    data_it = data[data["type"]=="IT"]
+    data_pt = data[data["type"]=="PT"]
+
+    # # calculate means
+    # st_mean = data_st.groupby("area").mean(numeric_only=True)
+    # mm_mean = data_mm.groupby("area").mean(numeric_only=True)
+
+    
+    it_tt = proportion_ttest(data_it)
+    it_tt['type'] = "IT"
+    pt_tt = proportion_ttest(data_pt)
+    pt_tt['type'] = "PT"
+
+    omc_tt = pd.concat([it_tt, pt_tt])
+    omc_tt['p<0.05'] = omc_tt['p-value']<0.05
+    omc_tt = omc_tt.reset_index(drop=True)
+    
+    return(omc_tt)
+
+def sample_mm_all(data, metadata=metadata, random_state=10):
+    """Given list of dataframe, sample from combined lab mouse cells (without replacement), in equivalent numbers
+    to singing mouse cells/brain. Make sure that each simulated 'brain' does not have overlapping/reused cells.
+
+    Args:
+        data (list): List of pandas dataframes where each row is a different cell/neuron
+        metadata (DataFrame, optional): Metadata used to determine which df in data is lab/singing mouse. 
+                                        Defaults to metadata.
+        random_state (int, optional): Set random state to use for repeatable sampling.
+                                        Defaults to 10.
+    """
+
+    mm_all = [data[i] for i in range(metadata.shape[0]) if metadata.loc[i,'species']=="MMus"]
+    mm_all = pd.concat(mm_all).reset_index(drop=True)
+
+    print("mm_all.shape[0]", mm_all.shape[0])
+    mm_pool = mm_all.copy()
+    mm_samp = []
+
+    for i in range(metadata.shape[0]):
+        if metadata.loc[i,'species'] == "STeg":
+            n = data[i].shape[0]
+            int = mm_pool.sample(n, random_state=10)
+            idx = int.index
+
+            mm_samp.append(int.reset_index(drop=True))
+
+            # update mm_pool so don't resample neurons
+            print("sampled:", len(idx))
+            mm_pool = mm_pool.drop(idx)
+            print("update mm_pool.shape[0]", mm_pool.shape[0])
+
+    return(mm_samp)
+

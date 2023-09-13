@@ -13,6 +13,7 @@ import matplotlib.lines as mlines # needed for custom legend
 from matplotlib.patches import Patch # needed for custom legend
 from scipy import stats
 import matplotlib.patches as mpatches  # Import patches to create custom legend markers
+import math
 
 # for upset plots
 import upsetplot
@@ -64,7 +65,7 @@ def individ_node_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequ
 
     return(fig)
 
-def sorted_heatmap(df, title=None, sort_by=['type'], drop=['type'], nsample=None, 
+def sorted_heatmap(df, title=None, sort_by=['type'], sort_ascend=True, drop=['type'], nsample=None, 
                    random_state=10, norm=None, cmap=orange_cmp, cbar=False,
                    label_neurons=None):
     """_summary_
@@ -83,7 +84,9 @@ def sorted_heatmap(df, title=None, sort_by=['type'], drop=['type'], nsample=None
         plot = df.copy()
 
     plot = plot.replace({"IT":0.25, "CT":0.5, "PT":0.75})
-    plot = plot.sort_values(by=sort_by).reset_index(drop=True)
+    plot = plot.sort_values(by=sort_by, ascending=sort_ascend)
+    idx = plot.index
+    plot = plot.reset_index(drop=True)
 
     fig=plt.subplot()
     sns.heatmap(plot.drop(drop, axis=1), norm=norm, cmap=cmap, cbar=cbar)
@@ -92,7 +95,7 @@ def sorted_heatmap(df, title=None, sort_by=['type'], drop=['type'], nsample=None
     if label_neurons:
         for key in label_neurons.keys():
             plt.text(-0.3,label_neurons[key], key+"-", va="center_baseline")
-    return(fig)
+    return(idx, fig)
     
 def single_neuron_heatmap(df, neuron, figsize=(6.4, 0.5), label=None, 
                           sort_by=['type'], drop=["OMCi", "type"], cmap=orange_cmp):
@@ -145,6 +148,40 @@ def single_neuron_line(df, neuron, figsize=(6.4, 0.5), label=None, ylim=1400,
     values = plotn.iloc[0].values
     values = values/values.max() # row normalized
     plt.plot(areas, values, color=cmap.colors[255])
+    plt.text(-2, 0.55, label, va="center_baseline")
+    # plt.ylim(0,ylim)
+    
+    return(fig)
+
+def single_neuron_bar(df, neuron, figsize=(6.4, 0.5), label=None, ylim=1400,
+                          sort_by=['type'], drop=["OMCi", "type"], cmap=orange_cmp):
+    """_summary_
+
+    Args:
+        df (dataframe): must be normalized count data
+        neuron (int): index of neuron to plot
+        figsize (tuple, optional): _description_. Defaults to (6.4, 0.5).
+        label (string, optional): _description_. Defaults to None.
+        sort_by (list, optional): _description_. Defaults to ['type'].
+        drop (list, optional): _description_. Defaults to ["OMCi", "type"].
+        cmap (colormap, optional): _description_. Defaults to orange_cmp.
+    """
+    fig = plt.figure(figsize=figsize)
+
+    plot = df.copy()
+
+    plot = df.replace({"IT":0.25, "CT":0.5, "PT":0.75})
+    plot = plot.sort_values(by=sort_by).reset_index(drop=True)
+    plot = plot.drop(drop, axis=1)
+
+
+    ineuron = plot.iloc[neuron,:]
+    plotn = pd.DataFrame(ineuron).T
+
+    areas = plotn.columns.values
+    values = plotn.iloc[0].values
+    values = values/values.max() # row normalized
+    plt.bar(areas, values, color=cmap.colors[255])
     plt.text(-2, 0.55, label, va="center_baseline")
     # plt.ylim(0,ylim)
     
@@ -240,40 +277,45 @@ def proportion_polar_plot(df_list, plot_individuals=False, title=None,
     return(fig)
 
 
-def area_proportion_dot_plot(df, area, title=None):
+def area_proportion_dot_plot(df, area, title=None, err="se", add_legend=True):
     """_summary_
 
     Args:
         df (DataFrame): Output from dfs_to_proportion
-        area (string): area to plot
+        area (str): area to plot
+        err (str): error bar to plot for sns.pointplot(), can be "ci", "pi", "se", or "sd"
     """
 
     area_df = df[df["area"]==area]
 
-    means = area_df.groupby('species')['proportion'].mean() # need means for plotting lines
+    # means = area_df.groupby('species')['proportion'].mean() # need means for plotting lines
 
     fig, ax = plt.subplots()
 
     strip = sns.stripplot(data=area_df, x="species", y="proportion", hue="species", size=10, ax=ax)
-    violin = sns.violinplot(area_df, x='species',y="proportion",
-                split=True, hue ='species', inner = None, 
-                palette="pastel",legend=False)
-    point = sns.pointplot(data=area_df, x="species", y="proportion", hue="species", units='mice', color='black', markers='+', ax=ax) # plots mean and 95 confidence interval:
+    # violin = sns.violinplot(area_df, x='species',y="proportion",
+    #             split=True, hue ='species', inner = None, 
+    #             palette="pastel",legend=False)
+    point = sns.pointplot(data=area_df, x="species", y="proportion", hue="species", units='mice', 
+                          color='black', markers='+', ax=ax, errorbar=err) # plots mean and 95 confidence interval:
 
-    mm_line = mlines.Line2D([0, 1], [means["MMus"], means["MMus"]], color=blue_cmp.colors[150])
-    st_line = mlines.Line2D([0, 1], [means["STeg"], means["STeg"]], color=orange_cmp.colors[150])
+    # mm_line = mlines.Line2D([0, 1], [means["MMus"], means["MMus"]], color=blue_cmp.colors[150])
+    # st_line = mlines.Line2D([0, 1], [means["STeg"], means["STeg"]], color=orange_cmp.colors[150])
     
-    ax.add_line(mm_line)
-    ax.add_line(st_line)
+    # ax.add_line(mm_line)
+    # ax.add_line(st_line)
 
     plt.title(title, size=20)
     plt.ylim((0)) # make sure y axis starts at 0
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
 
-    plt.legend(loc="upper left")
-    legend = mlines.Line2D([], [], color="black", marker="+", linewidth=0, label="mean, 95 CI")
-    plt.legend(handles=[legend])
+    if add_legend:
+        legend = mlines.Line2D([], [], color="black", marker="+", linewidth=0, label="mean, "+err)
+        plt.legend(handles=[legend], loc="lower right")
+    else:
+        plt.legend([],[], frameon=False)
+
 
     return(fig)
 
@@ -335,12 +377,13 @@ def plot_volcano(df, x="log2_fc", y="nlog10_p", title=None, labels="area", shape
     fig = plt.subplot()
 
     marker_order = ['o', 'D', 'v']
+    color_order = ["#2ca02c", "#9467bd"]
     if shape:
         nshapes = df[shape].unique()
         for i in range(nshapes.shape[0]):
             dfn = df[df[shape]==nshapes[i]]
             plt.scatter(dfn[x], dfn[y], label=nshapes[i],
-                        marker=marker_order[i], s=25, c="black")
+                        marker=marker_order[i], s=25, c=color_order[i])
         
 
         # #  Create custom legend labels
@@ -381,8 +424,9 @@ def plot_volcano(df, x="log2_fc", y="nlog10_p", title=None, labels="area", shape
 
 
     plt.title(title)
-    plt.xlabel('log2(fold change)')
-    plt.ylabel('-log10(p-value)')
+    # plt.xlabel('log2(fold change)')
+    plt.xlabel('$log_{2}$($\dfrac{STeg\ mean}{MMus\ mean}$)')
+    plt.ylabel('$-log_{10}(p\ value)$')
 
     handles, labels = plt.gca().get_legend_handles_labels()
     plt.legend(handles=handles, loc="upper left")
@@ -530,6 +574,180 @@ def stvmm_area_scatter(data, title="", to_plot="proportion", log=False,
     # add axis labels
     plt.xlabel("Singing Mouse "+axis_label, color="tab:orange")
     plt.ylabel("Lab Mouse "+axis_label, color="tab:blue")
+
+    # add title
+    plt.title(title)
+
+    return(fig)
+
+def stvmm_area_scatter_type(data, title="", log=False, 
+                       err="sem", ax_limits=None, axis_label="Proportion", species=None):
+    """Plots lab mouse v. singing moues scatter w/ unity line
+
+    Args:
+        data (pandas.dataframe): output of calc_fluor
+        title (Str): string to use for plot title. Defaults to "".
+        log (bool): determine whether to plot axes on log scale. Defaults to False.
+        err (str): Used to determine what error to plot. Can be "sem", "std", or "ci95
+        ax_limits (list): list of 2 intergers (or tuple) to set axis limits. Defaults to None.
+        axis_label (str): String to add to axis labels. Defaults to "Proportion".
+        species (str): used to determine whether plotting st v mm or sp vs sp. Defaults to None.
+    """
+    if species:
+        data_sp = data[data['species']==species]
+        x_stats = data_sp.copy()
+        y_stats = data_sp.copy()
+        x_label = species
+        y_label = species
+    else:
+        x_stats = data[data['species']=="STeg"]
+        x_label = "Singing Mouse"
+        y_stats = data[data['species']=="MMus"]
+        y_label = "Lab Mouse"
+
+    fig = plt.subplot()
+    
+
+    # plot errorbars
+    plt.errorbar(x_stats['mean'], y_stats['mean'], 
+            xerr=x_stats[err], fmt='|', color="black")
+    plt.errorbar(x_stats['mean'], y_stats['mean'], 
+            yerr=y_stats[err], fmt='|', color="black")
+
+    # plot by cell type
+    # it cells
+    x_it = x_stats[x_stats['type']=="IT"]
+    y_it = y_stats[y_stats['type']=="IT"]
+    plt.scatter(x=x_it['mean'], y=y_it['mean'], marker="o", c="#2ca02c", label="IT")
+
+    x_pt = x_stats[x_stats['type']=="PT"]
+    y_pt = y_stats[y_stats['type']=="PT"]
+    plt.scatter(x=x_pt['mean'], y=y_pt['mean'], marker="D", c="#9467bd", label="PT")
+
+    # add area labels
+    labels = list(x_stats.index)
+    for i in range(len(labels)):
+        plt.annotate(labels[i], (x_stats['mean'][i]+0.01, y_stats['mean'][i]+0.01))
+        
+    
+    # set x and y lims so that starts at 0,0
+    if ax_limits:
+        plt.xlim(ax_limits)
+        plt.ylim(ax_limits)
+
+
+    # adjust scale
+    if log:
+        plt.xscale("log")
+        plt.yscale("log")
+
+    # plot unity line
+    x = np.linspace(0,1, 5)
+    y = x
+    plt.plot(x, y, color='grey', linestyle="--", linewidth=0.5)
+
+
+    # add axis labels
+    plt.xlabel(x_label+" "+axis_label)
+    plt.ylabel(y_label+" "+axis_label)
+
+    # add legend
+    plt.legend()
+
+    # add title
+    plt.title(title)
+
+    return(fig)
+
+def stvmm_area_scatter_individ(data, data_prop, title="", log=False, 
+                       err="sem", ax_limits=None, axis_label="Proportion", species=None):
+    """Plots lab mouse v. singing moues scatter w/ unity line
+
+    Args:
+        data (pandas.dataframe): Input = proportions
+        title (Str): string to use for plot title. Defaults to "".
+        log (bool): determine whether to plot axes on log scale. Defaults to False.
+        err (str): Used to determine what error to plot. Can be "sem", "std", or "ci95
+        ax_limits (list): list of 2 intergers (or tuple) to set axis limits. Defaults to None.
+        axis_label (str): String to add to axis labels. Defaults to "Proportion".
+        species (str): used to determine whether plotting st v mm or sp vs sp. Defaults to None.
+    """
+
+    if species:
+        data_sp = data[data['species']==species]
+        x_stats = data_sp.copy()
+        y_stats = data_sp.copy()
+        x_label = species
+        y_label = species
+
+        x_indv = data_prop.copy()
+        y_indv = data_prop.copy()
+
+    else:
+        x_stats = data[data['species']=="STeg"]
+        x_indv = data_prop[data_prop['species']=="STeg"].copy()
+        x_label = "Singing Mouse"
+        y_stats = data[data['species']=="MMus"]
+        y_indv = data_prop[data_prop['species']=="MMus"]
+        y_label = "Lab Mouse"
+
+    fig = plt.subplot()
+    
+
+    # # plot errorbars
+    # plt.errorbar(x_stats['mean'], y_stats['mean'], 
+    #         xerr=x_stats[err], fmt='|', color="black")
+    # plt.errorbar(x_stats['mean'], y_stats['mean'], 
+    #         yerr=y_stats[err], fmt='|', color="black")
+
+    # plot individs
+    for area in data['area']:
+        plt.scatter(x=x_stats['mean'], y=x_indv['proportion'], c="black")
+        plt.scatter(x=x_indv['proportion'], y=y_stats['mean'], c="black")
+
+
+    # plot by cell type
+    # it cells
+    x_it = x_stats[x_stats['type']=="IT"]
+    y_it = y_stats[y_stats['type']=="IT"]
+
+    x_pt = x_stats[x_stats['type']=="PT"]
+    y_pt = y_stats[y_stats['type']=="PT"]
+
+    # plot means
+    plt.scatter(x=x_it['mean'], y=y_it['mean'], marker="o", c="#2ca02c", label="IT")
+    plt.scatter(x=x_pt['mean'], y=y_pt['mean'], marker="D", c="#9467bd", label="PT")
+
+
+    # add area labels
+    labels = list(x_stats.index)
+    for i in range(len(labels)):
+        plt.annotate(labels[i], (x_stats['mean'][i]+0.01, y_stats['mean'][i]+0.01))
+        
+    
+    # set x and y lims so that starts at 0,0
+    if ax_limits:
+        plt.xlim(ax_limits)
+        plt.ylim(ax_limits)
+
+
+    # adjust scale
+    if log:
+        plt.xscale("log")
+        plt.yscale("log")
+
+    # plot unity line
+    x = np.linspace(0,1, 5)
+    y = x
+    plt.plot(x, y, color='grey', linestyle="--", linewidth=0.5)
+
+
+    # add axis labels
+    plt.xlabel(x_label+" "+axis_label)
+    plt.ylabel(y_label+" "+axis_label)
+
+    # add legend
+    plt.legend()
 
     # add title
     plt.title(title)
