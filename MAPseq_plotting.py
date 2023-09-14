@@ -365,7 +365,7 @@ def proportion_volcano_plot(df, title=None, labels="area", p_05=True, p_01=True,
     return(fig)
 
 def plot_volcano(df, x="log2_fc", y="nlog10_p", title=None, labels="area", shape=None,
-                 p_05=True, p_01=True, p_bf=None, xlim=(-2,2)):
+                 p_05=True, p_01=True, p_bf=None, xlim=(-2,2), legend_loc="upper left"):
     """output volcano plot based on comparison of species proportional means
 
     Args:
@@ -438,7 +438,7 @@ def plot_volcano(df, x="log2_fc", y="nlog10_p", title=None, labels="area", shape
     plt.ylabel('$-log_{10}(p\ value)$')
 
     handles, labels = plt.gca().get_legend_handles_labels()
-    plt.legend(handles=handles, loc="upper left")
+    plt.legend(handles=handles, loc=legend_loc)
 
     # apply axis limits
     plt.xlim(xlim)
