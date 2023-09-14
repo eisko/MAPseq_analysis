@@ -365,11 +365,20 @@ def proportion_volcano_plot(df, title=None, labels="area", p_05=True, p_01=True,
     return(fig)
 
 def plot_volcano(df, x="log2_fc", y="nlog10_p", title=None, labels="area", shape=None,
-                 p_05=True, p_01=True, p_bf=None):
+                 p_05=True, p_01=True, p_bf=None, xlim=(-2,2)):
     """output volcano plot based on comparison of species proportional means
 
     Args:
         df (pd.DataFrame): output of proprotion_ttest
+        x (str): column name to put on x axis
+        y (str): column name to put on y axis
+        title (str, optional): title of plot. Defaults to None
+        labels (str, optional): column used to label points. Defaults to 'area'.
+        shape (str, optional): Column used to determine shape (e.g. 'type'). Defaults to None.
+        p_05 (bool, optionl): used to toggle p<05 line on/off. Defaults to Ture.
+        p_01 (bool, optionl): used to toggle p<01 line on/off. Defaults to Ture.
+        p_bf (float, optional): Boferoni correction cut-off to plot. Defaults to None.
+        xlim (tuple, optional): tuple of numbers to set x-axis limits. Defaults to (-2,2).
     """
 
     # areas = sorted(df['area'].unique())
@@ -430,6 +439,9 @@ def plot_volcano(df, x="log2_fc", y="nlog10_p", title=None, labels="area", shape
 
     handles, labels = plt.gca().get_legend_handles_labels()
     plt.legend(handles=handles, loc="upper left")
+
+    # apply axis limits
+    plt.xlim(xlim)
 
     return(fig)
 
@@ -580,30 +592,29 @@ def stvmm_area_scatter(data, title="", to_plot="proportion", log=False,
 
     return(fig)
 
-def stvmm_area_scatter_type(data, title="", log=False, 
+def stvmm_area_scatter_type(data, x="STeg", y="MMus", title="", log=False, 
                        err="sem", ax_limits=None, axis_label="Proportion", species=None):
     """Plots lab mouse v. singing moues scatter w/ unity line
 
     Args:
         data (pandas.dataframe): output of calc_fluor
+        x (str): species to plot on x axis. Defaults to "STeg".
+        y (str): species to plot on y axis. Defaults to "MMUs".
         title (Str): string to use for plot title. Defaults to "".
         log (bool): determine whether to plot axes on log scale. Defaults to False.
         err (str): Used to determine what error to plot. Can be "sem", "std", or "ci95
         ax_limits (list): list of 2 intergers (or tuple) to set axis limits. Defaults to None.
         axis_label (str): String to add to axis labels. Defaults to "Proportion".
-        species (str): used to determine whether plotting st v mm or sp vs sp. Defaults to None.
+        # species (str): used to determine whether plotting st v mm or sp vs sp. Defaults to None.
     """
-    if species:
-        data_sp = data[data['species']==species]
-        x_stats = data_sp.copy()
-        y_stats = data_sp.copy()
-        x_label = species
-        y_label = species
-    else:
-        x_stats = data[data['species']=="STeg"]
-        x_label = "Singing Mouse"
-        y_stats = data[data['species']=="MMus"]
-        y_label = "Lab Mouse"
+
+
+    data_x = data[data['species']==x]
+    x_stats = data_x.copy().reset_index()
+    x_label = x
+    data_y = data[data['species']==y]
+    y_stats = data_y.copy().reset_index()
+    y_label = y
 
     fig = plt.subplot()
     
@@ -625,7 +636,7 @@ def stvmm_area_scatter_type(data, title="", log=False,
     plt.scatter(x=x_pt['mean'], y=y_pt['mean'], marker="D", c="#9467bd", label="PT")
 
     # add area labels
-    labels = list(x_stats.index)
+    labels = list(x_stats['area'])
     for i in range(len(labels)):
         plt.annotate(labels[i], (x_stats['mean'][i]+0.01, y_stats['mean'][i]+0.01))
         
@@ -675,8 +686,8 @@ def stvmm_area_scatter_individ(data, data_prop, title="", log=False,
 
     if species:
         data_sp = data[data['species']==species]
-        x_stats = data_sp.copy()
-        y_stats = data_sp.copy()
+        x_stats = data_sp.copy().reset_index(drop=True)
+        y_stats = data_sp.copy().reset_index(drop=True)
         x_label = species
         y_label = species
 
@@ -701,9 +712,39 @@ def stvmm_area_scatter_individ(data, data_prop, title="", log=False,
     #         yerr=y_stats[err], fmt='|', color="black")
 
     # plot individs
-    for area in data['area']:
-        plt.scatter(x=x_stats['mean'], y=x_indv['proportion'], c="black")
-        plt.scatter(x=x_indv['proportion'], y=y_stats['mean'], c="black")
+    # set colors for each area
+    colors = [
+    "#1f77b4",  # Blue
+    "#ff7f0e",  # Orange
+    "#2ca02c",  # Green
+    "#d62728",  # Red
+    "#9467bd",  # Purple
+    "#8c564b",  # Brown
+    "#e377c2",  # Pink
+    "#7f7f7f",  # Gray
+    "#bcbd22",  # Olive
+    "#17becf",  # Cyan
+    "#aec7e8",  # Light Blue
+    "#ffbb78",  # Light Orange
+    "#98df8a",  # Light Green
+    "#ff9896",  # Light Red
+    "#c5b0d5",  # Light Purple
+    "#c49c94",  # Light Brown
+    ]
+
+
+    for i in range(x_stats['area'].shape[0]):
+        area = x_stats.loc[i,'area']
+        x_st_area = x_stats[x_stats['area']==area]
+        y_st_area = y_stats[y_stats['area']==area]
+        x_in_area = x_indv[x_indv['area']==area]
+        nx = x_in_area.shape[0]
+
+        y_in_area = y_indv[y_indv['area']==area]
+        ny = y_in_area.shape[0]
+
+        plt.scatter(x=[x_st_area['mean']]*nx, y=y_in_area['proportion'], color=colors[i])
+        plt.scatter(x=x_in_area['proportion'], y=[y_st_area['mean']]*ny, color=colors[i])
 
 
     # plot by cell type
@@ -715,14 +756,14 @@ def stvmm_area_scatter_individ(data, data_prop, title="", log=False,
     y_pt = y_stats[y_stats['type']=="PT"]
 
     # plot means
-    plt.scatter(x=x_it['mean'], y=y_it['mean'], marker="o", c="#2ca02c", label="IT")
-    plt.scatter(x=x_pt['mean'], y=y_pt['mean'], marker="D", c="#9467bd", label="PT")
+    plt.scatter(x=x_it['mean'], y=y_it['mean'], marker="o", c="black", label="IT")
+    plt.scatter(x=x_pt['mean'], y=y_pt['mean'], marker="D", c="black", label="PT")
 
 
     # add area labels
-    labels = list(x_stats.index)
+    labels = list(x_stats['area'])
     for i in range(len(labels)):
-        plt.annotate(labels[i], (x_stats['mean'][i]+0.01, y_stats['mean'][i]+0.01))
+        plt.annotate(labels[i], (x_stats.loc[i,'mean']+0.01, y_stats.loc[i,'mean']+0.01), c=colors[i])
         
     
     # set x and y lims so that starts at 0,0

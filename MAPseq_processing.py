@@ -216,7 +216,7 @@ def dfs_to_proportions(df_list, drop=["OMCi", "type"], keep=None, cell_type=None
     
     return plot_df
 
-def proportion_ttest(df):
+def proportion_ttest(df, sp1="MMus", sp2="STeg"):
     """output dataframe based on comparison of species proportional means
         output dataframe can be used for making volcano plot
 
@@ -230,19 +230,20 @@ def proportion_ttest(df):
     #     area_df = df[df['area']==area]
     #     mean = df.groupby('area', sort = False, as_index=False)['proportion'].mean()
 
-    mmus_df = df[df["species"]=="MMus"]
-    mmus_array = mmus_df.pivot(columns='mice', values='proportion', index='area').values
+    # sp1
+    sp1_df = df[df["species"]==sp1]
+    sp1_array = sp1_df.pivot(columns='mice', values='proportion', index='area').values
 
-    steg_df = df[df["species"]=="STeg"]
-    steg_array = steg_df.pivot(columns='mice', values='proportion', index='area').values
+    sp2_df = df[df["species"]==sp2]
+    sp2_array = sp2_df.pivot(columns='mice', values='proportion', index='area').values
 
-    results = stats.ttest_ind(mmus_array, steg_array, axis=1)
+    results = stats.ttest_ind(sp1_array, sp2_array, axis=1)
     p_vals = results[1]
     plot = pd.DataFrame({"area":areas, "p-value":p_vals})
-    plot["mm_mean"] = mmus_array.mean(axis=1)
-    plot["st_mean"] = steg_array.mean(axis=1)
+    plot[sp1+"_mean"] = sp1_array.mean(axis=1)
+    plot[sp2+"_mean"] = sp2_array.mean(axis=1)
     # plot["effect_size"] = (plot["st_mean"]-plot["mm_mean"]) / (plot["st_mean"] + plot["mm_mean"]) # modulation index
-    plot["fold_change"] = plot["st_mean"]/(plot["mm_mean"])
+    plot["fold_change"] = plot[sp2+"_mean"]/(plot[sp1+"_mean"])
     plot["log2_fc"] = np.log2(plot["fold_change"])
     plot["nlog10_p"] = -np.log10(plot["p-value"])
 
@@ -342,7 +343,7 @@ def fold_change_calc(df_type, meta=metadata, drop=["OMCi","type"], inj_site="OMC
     return plot
 
     
-def stvmm_calc_stats(data, to_plot="proportion"):
+def stvmm_calc_stats(data, to_plot="proportion", species=["STeg", "MMus"]):
     """calculate statistics on to_plot column per species
 
     Args:
@@ -351,31 +352,34 @@ def stvmm_calc_stats(data, to_plot="proportion"):
     """
 
     # separate by species
-    data_st = data[data["species"]=="STeg"]
-    data_mm = data[data["species"]=="MMus"]
+    stats_sp = []
+    for sp in species:
+        data_sp = data[data["species"]==sp]
+        agg_sp = data_sp.groupby(['area'])[to_plot].agg(['mean', 'count', 'std', 'sem'])
 
-    # calculate stats
-    st_stats = data_st.groupby(["area"])[to_plot].agg(['mean', 'count', 'std', 'sem'])
-    mm_stats = data_mm.groupby(["area"])[to_plot].agg(['mean', 'count', 'std', 'sem'])
+        ci95 = []
+        for i in agg_sp.index:
+            c = agg_sp.loc[i, 'count']
+            sd = agg_sp.loc[i, 'std']
+            ci95.append(1.96*sd/math.sqrt(c))
+        agg_sp['ci95'] = ci95
 
-    ci95 = []
-    for i in st_stats.index:
-        m, c, sd, se = st_stats.loc[i]
-        ci95.append(1.96*sd/math.sqrt(c))
-    st_stats['ci95'] = ci95
+        agg_sp['species'] = sp
 
-    ci95 = []
-    for i in mm_stats.index:
-        m, c, sd, se = mm_stats.loc[i]
-        ci95.append(1.96*sd/math.sqrt(c))
-    mm_stats['ci95'] = ci95
+        # change area from index to column
+        agg_sp = agg_sp.reset_index()
 
-    st_stats['species'] = "STeg"
-    mm_stats['species'] = "MMus"
+        # assign cell type
+        for i in range(agg_sp.shape[0]):
+            area = agg_sp.loc[i, 'area']
+            area_df = data_sp[data_sp['area']==area].reset_index()
+            agg_sp.loc[i, 'type'] = area_df.loc[0, 'type']
 
-    return(pd.concat([st_stats, mm_stats]))
+        stats_sp.append(agg_sp)
 
-def stvmm_calc_ttest(data):
+    return(pd.concat(stats_sp))
+
+def stvmm_calc_ttest(data, sp1="MMus", sp2="STeg"):
     """Given dataset w/ labeled cell type and species, calculate ttest p-values b/w species replicates
 
     Args:
@@ -392,9 +396,9 @@ def stvmm_calc_ttest(data):
     # mm_mean = data_mm.groupby("area").mean(numeric_only=True)
 
     
-    it_tt = proportion_ttest(data_it)
+    it_tt = proportion_ttest(data_it, sp1=sp1, sp2=sp2)
     it_tt['type'] = "IT"
-    pt_tt = proportion_ttest(data_pt)
+    pt_tt = proportion_ttest(data_pt, sp1=sp1, sp2=sp2)
     pt_tt['type'] = "PT"
 
     omc_tt = pd.concat([it_tt, pt_tt])
@@ -418,7 +422,7 @@ def sample_mm_all(data, metadata=metadata, random_state=10):
     mm_all = [data[i] for i in range(metadata.shape[0]) if metadata.loc[i,'species']=="MMus"]
     mm_all = pd.concat(mm_all).reset_index(drop=True)
 
-    print("mm_all.shape[0]", mm_all.shape[0])
+    # print("mm_all.shape[0]", mm_all.shape[0])
     mm_pool = mm_all.copy()
     mm_samp = []
 
@@ -431,9 +435,9 @@ def sample_mm_all(data, metadata=metadata, random_state=10):
             mm_samp.append(int.reset_index(drop=True))
 
             # update mm_pool so don't resample neurons
-            print("sampled:", len(idx))
+            # print("sampled:", len(idx))
             mm_pool = mm_pool.drop(idx)
-            print("update mm_pool.shape[0]", mm_pool.shape[0])
+            # print("update mm_pool.shape[0]", mm_pool.shape[0])
 
     return(mm_samp)
 
