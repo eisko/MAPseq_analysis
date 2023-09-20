@@ -277,7 +277,7 @@ def proportion_polar_plot(df_list, plot_individuals=False, title=None,
     return(fig)
 
 
-def area_proportion_dot_plot(df, area, title=None, err="se", add_legend=True):
+def area_proportion_dot_plot(df, area, title=None, err="se", add_legend=True, to_plot="proportion", ylim=(0)):
     """_summary_
 
     Args:
@@ -292,11 +292,11 @@ def area_proportion_dot_plot(df, area, title=None, err="se", add_legend=True):
 
     fig, ax = plt.subplots()
 
-    strip = sns.stripplot(data=area_df, x="species", y="proportion", hue="species", size=10, ax=ax)
+    strip = sns.stripplot(data=area_df, x="species", y=to_plot, hue="species", size=10, ax=ax)
     # violin = sns.violinplot(area_df, x='species',y="proportion",
     #             split=True, hue ='species', inner = None, 
     #             palette="pastel",legend=False)
-    point = sns.pointplot(data=area_df, x="species", y="proportion", hue="species", units='mice', 
+    point = sns.pointplot(data=area_df, x="species", y=to_plot, hue="species", units='mice', 
                           color='black', markers='+', ax=ax, errorbar=err) # plots mean and 95 confidence interval:
 
     # mm_line = mlines.Line2D([0, 1], [means["MMus"], means["MMus"]], color=blue_cmp.colors[150])
@@ -306,7 +306,7 @@ def area_proportion_dot_plot(df, area, title=None, err="se", add_legend=True):
     # ax.add_line(st_line)
 
     plt.title(title, size=20)
-    plt.ylim((0)) # make sure y axis starts at 0
+    plt.ylim(ylim) # make sure y axis starts at 0
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
 

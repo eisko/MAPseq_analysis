@@ -441,3 +441,35 @@ def sample_mm_all(data, metadata=metadata, random_state=10):
 
     return(mm_samp)
 
+def proportion_comparisons(data, species1="MMus", species2="STeg", label="inter"):
+    """Given output of dfs_to_proportions calculate differences between individual points among/within species
+
+    Args:
+        data (DataFrame): pd.DataFrame, output of dfs_to_proportions()
+        group1 (str, optional): Species to compare to. Defaults to "MMus".
+        group2 (str, optional): Other species to compare. Defaults to "STeg".
+        label (str, optional): Label of intra/inter comparison. Defautls to "inter".
+    """
+
+    df1 = data[data['species']==species1]
+    df2 = data[data['species']==species2]
+
+    areas = data['area'].unique()
+
+    out_df = pd.DataFrame(columns=['area', 'prop_diff', 'species', 'mice', 'label'])
+
+    for area in areas:
+        
+        df1a = df1[df1['area']==area].reset_index(drop=True)
+        df2a = df2[df2['area']==area].reset_index(drop=True)
+        
+        for a in range(df1a.shape[0]):
+            for b in range(df2a.shape[0]):
+                diff = df1a.loc[a, 'proportion'] - df2a.loc[b, 'proportion']
+                abs_diff = math.sqrt(diff**2)
+                row = [area, abs_diff, species1+"_"+species2, df1a.loc[a, 'mice']+"_"+df2a.loc[b,'mice'], label]
+                i = out_df.shape[0]
+                out_df.loc[i, :] = row
+                
+    return(out_df)
+
