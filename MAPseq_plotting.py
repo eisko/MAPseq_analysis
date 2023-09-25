@@ -529,7 +529,8 @@ def fold_change_ranked(plot, title=None, suptitle=None,
     return(fig)
 
 def stvmm_area_scatter(data, title="", to_plot="proportion", log=False, 
-                       err="sem", ax_limits=None, axis_label="Proportion"):
+                       err="sem", ax_limits=None, axis_label="Proportion",
+                       sp1="STeg", sp2="MMus"):
     """Plots lab mouse v. singing moues scatter w/ unity line
 
     Args:
@@ -538,8 +539,8 @@ def stvmm_area_scatter(data, title="", to_plot="proportion", log=False,
     """
 
     # separate by species
-    data_st = data[data["species"]=="STeg"]
-    data_mm = data[data["species"]=="MMus"]
+    data_st = data[data["species"]==sp1]
+    data_mm = data[data["species"]==sp2]
 
     # calculate means
     st_mean = data_st.groupby("area").mean(numeric_only=True)
@@ -611,9 +612,11 @@ def stvmm_area_scatter_type(data, x="STeg", y="MMus", title="", log=False,
 
     data_x = data[data['species']==x]
     x_stats = data_x.copy().reset_index()
+    print(x_stats.shape)
     x_label = x
     data_y = data[data['species']==y]
     y_stats = data_y.copy().reset_index()
+    print(y_stats.shape)
     y_label = y
 
     fig = plt.subplot()

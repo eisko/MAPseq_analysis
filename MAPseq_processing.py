@@ -195,7 +195,7 @@ def dfs_to_proportions(df_list, drop=["OMCi", "type"], keep=None, cell_type=None
         drop = [inj_site, 'TH', 'HY', 'AMY', 'SNr', 'SCm', 'PG',
        'PAG', 'BS']
     elif cell_type == "PT":
-        drop = [inj_site,inj_site[:-1]+"c", 'AUD']
+        drop = [inj_site,inj_site[:-1]+"c", 'AUD', "STR"]
 
     if keep:
         drop = []
@@ -216,7 +216,106 @@ def dfs_to_proportions(df_list, drop=["OMCi", "type"], keep=None, cell_type=None
     
     return plot_df
 
-def proportion_ttest(df, sp1="MMus", sp2="STeg"):
+def dfs_to_total_BCs(df_list, drop=['type'], keep=None, cell_type=None, meta=metadata, inj_site="OMCi"):
+    """Output dataframe of proportions in format that can be plotted with seaborn. Not for binary data!
+
+    Args:
+        df_list (list): 
+            - List of dataframes of neurons/BC by areas
+        drop (list, optional): 
+            - Defaults to ["OMCi", "type"]
+            - list of areas/columns to drop before calculating proportions
+        cell_type (string, optional): 
+            - Specify cell types in df, either IT, CT or PT
+            - Defaults to None
+
+    Returns:
+        plot_df (pandas_dataframe):
+            - returns dataframe in format for seaborn plotting
+            - columns = areas, and other metadata
+    """
+
+    plot_df = pd.DataFrame(columns=["area", "BC_total", "mice", "species", "dataset"])
+
+    if cell_type == "IT":
+        drop = [inj_site, 'TH', 'HY', 'AMY', 'SNr', 'SCm', 'PG',
+       'PAG', 'BS']
+    elif cell_type == "PT":
+        drop = [inj_site,inj_site[:-1]+"c", 'AUD', "STR"]
+
+    if keep:
+        drop = []
+
+    mice = meta["mice"]
+    species = meta["species"]
+    dataset = meta["dataset"]
+
+    for i in range(len(df_list)):
+        df = df_list[i].drop(drop, axis=1)
+        if keep:
+            df = df.loc[:, keep] # just subset keep columns
+        bc_sum = df.sum()
+        # proportion = bc_sum/df.shape[0]
+        df_add = pd.DataFrame({"area":bc_sum.index.values, "BC_total":bc_sum.values, 
+        "mice":mice[i], "species":species[i], "dataset":dataset[i]})
+        plot_df = pd.concat([plot_df, df_add])
+    
+    return plot_df
+
+def dfs_to_mean_BC_per_neuron(df_list, drop=['type'], keep=None, cell_type=None, meta=metadata, inj_site="OMCi"):
+    """Output dataframe of mean BC/neuron per area in format that can be plotted with seaborn. Not for binary data!
+
+    Args:
+        df_list (list): 
+            - List of dataframes of neurons/BC by areas
+        drop (list, optional): 
+            - Defaults to ["type"]
+            - list of areas/columns to drop before calculating proportions
+        cell_type (string, optional): 
+            - Specify cell types in df, either IT, CT or PT
+            - Defaults to None
+
+    Returns:
+        plot_df (pandas_dataframe):
+            - returns dataframe in format for seaborn plotting
+            - columns = areas, and other metadata
+    """
+
+    plot_df = pd.DataFrame(columns=["area", "mean_BC_neuron", "mice", "species", "dataset"])
+
+    if cell_type == "IT":
+        drop = [inj_site, 'TH', 'HY', 'AMY', 'SNr', 'SCm', 'PG',
+       'PAG', 'BS']
+    elif cell_type == "PT":
+        drop = [inj_site,inj_site[:-1]+"c", 'AUD', "STR"]
+
+    if keep:
+        drop = []
+
+    mice = meta["mice"]
+    species = meta["species"]
+    dataset = meta["dataset"]
+
+    for i in range(len(df_list)):
+        df = df_list[i].drop(drop, axis=1)
+        if keep:
+            df = df.loc[:, keep] # just subset keep columns
+
+        areas = []
+        BC_neuron = []
+        for area in df.columns:
+            areas.append(area)
+            idx = df[area] > 0
+            BC_neuron.append(df[idx][area].mean())
+
+
+        df_add = pd.DataFrame({"area":areas, "mean_BC_neuron":BC_neuron, 
+        "mice":mice[i], "species":species[i], "dataset":dataset[i]})
+        plot_df = pd.concat([plot_df, df_add])
+    
+    return plot_df
+
+def proportion_ttest(df, sp1="MMus", sp2="STeg", to_plot='proportion'):
     """output dataframe based on comparison of species proportional means
         output dataframe can be used for making volcano plot
 
@@ -232,10 +331,10 @@ def proportion_ttest(df, sp1="MMus", sp2="STeg"):
 
     # sp1
     sp1_df = df[df["species"]==sp1]
-    sp1_array = sp1_df.pivot(columns='mice', values='proportion', index='area').values
+    sp1_array = sp1_df.pivot(columns='mice', values=to_plot, index='area').values
 
     sp2_df = df[df["species"]==sp2]
-    sp2_array = sp2_df.pivot(columns='mice', values='proportion', index='area').values
+    sp2_array = sp2_df.pivot(columns='mice', values=to_plot, index='area').values
 
     results = stats.ttest_ind(sp1_array, sp2_array, axis=1)
     p_vals = results[1]
@@ -379,7 +478,7 @@ def stvmm_calc_stats(data, to_plot="proportion", species=["STeg", "MMus"]):
 
     return(pd.concat(stats_sp))
 
-def stvmm_calc_ttest(data, sp1="MMus", sp2="STeg"):
+def stvmm_calc_ttest(data, sp1="MMus", sp2="STeg", to_plot='proportion'):
     """Given dataset w/ labeled cell type and species, calculate ttest p-values b/w species replicates
 
     Args:
@@ -396,9 +495,9 @@ def stvmm_calc_ttest(data, sp1="MMus", sp2="STeg"):
     # mm_mean = data_mm.groupby("area").mean(numeric_only=True)
 
     
-    it_tt = proportion_ttest(data_it, sp1=sp1, sp2=sp2)
+    it_tt = proportion_ttest(data_it, sp1=sp1, sp2=sp2, to_plot=to_plot)
     it_tt['type'] = "IT"
-    pt_tt = proportion_ttest(data_pt, sp1=sp1, sp2=sp2)
+    pt_tt = proportion_ttest(data_pt, sp1=sp1, sp2=sp2, to_plot=to_plot)
     pt_tt['type'] = "PT"
 
     omc_tt = pd.concat([it_tt, pt_tt])
