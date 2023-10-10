@@ -13,6 +13,9 @@ from upsetplot import from_memberships
 from math import comb
 import math
 
+from statsmodels.distributions.empirical_distribution import ECDF # for generating cdfs
+
+
 def clean_up_data(df_dirty, to_drop = ['OB', 'ACAi', 'ACAc', 'HIP'], inj_site="OMCi"):
     """Clean up datasets so all matrices are in the same format. Function 
         (1) drops unwanted columns, e.g. negative controls or dissections of other injection sites. 
@@ -43,7 +46,7 @@ def clean_up_data(df_dirty, to_drop = ['OB', 'ACAi', 'ACAc', 'HIP'], inj_site="O
 
 def dfs_preprocess_counts(df_list, drop=["OMCi", "type"]):
     """INPUT: Takes list of dataframe(s) that are normalized counts (counts normalized to spike-in RNA),
-                disregards values in volumns specified by `drop`
+                disregards values in columns specified by `drop`
        OUTPUT: Returns list of dataframe(s) where each dataframe is normalized to its dataframe median
 
     Args:
@@ -572,3 +575,49 @@ def proportion_comparisons(data, species1="MMus", species2="STeg", label="inter"
                 
     return(out_df)
 
+
+def dfs_to_cdf(df_list, plot_areas, resolution=1000, metadata=metadata):
+    """Takes in list of DFs of count(N) data and returns dataframe w/ cdf data that can be plotted.
+    Returned Dataframe includes metadata
+
+    Args:
+        df_list (list): list of DataFrames of count(N) data.
+        plot_areas (list): List of strings of areas to calculate cdfs.
+        resolution (int, optional): Used to determine resolution of cdf line. Defaults to 1000.
+        medatadata (df, optional): Metadata where row corresponds to df_list indices. Defaults to metadata.
+    """
+
+    # combine all DFs into one df labelled w/ metadata
+    all_bc = pd.DataFrame(columns=list(df_list[0].columns)+["mice", "species", "dataset"])
+    for i in range(metadata.shape[0]):
+        df = df_list[i].copy(deep=True)
+        df['mice'] = metadata.loc[i, 'mice']
+        df['species'] = metadata.loc[i, "species"]
+        df['dataset'] = metadata.loc[i, "dataset"]
+        all_bc = pd.concat([all_bc, df])
+
+    all_bc = all_bc.reset_index(drop=True)
+
+    cdf_df = pd.DataFrame(columns=["x", "cdf", "mice", "species", "dataset", "area"])
+
+    # calculate cdf by area, then add by mouse
+    for area in plot_areas:
+        # just use nonzero BC
+        area_idx = all_bc[area] > 0
+        area_bc = all_bc.loc[area_idx, [area, "mice", "species", "dataset"]]
+        # get min/max for each area to set cdf bounds
+        area_min = area_bc[area].min()
+        area_max = area_bc[area].max()
+
+        for i in range(metadata.shape[0]):
+            micei = metadata.loc[i, 'mice']
+            mice_bc = area_bc[area_bc['mice']==micei]
+            ecdf = ECDF(mice_bc[area])
+            x = np.logspace(np.log10(area_min), np.log10(area_max), num=resolution)
+            y = ecdf(x)
+
+            int = pd.DataFrame({"x":x, "cdf":y, "mice":metadata.loc[i,"mice"], "species":metadata.loc[i,"species"], 
+                                "dataset":metadata.loc[i,"dataset"], "area":area})
+            cdf_df = pd.concat([cdf_df, int])
+
+    return(cdf_df)

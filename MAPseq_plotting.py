@@ -14,6 +14,8 @@ from matplotlib.patches import Patch # needed for custom legend
 from scipy import stats
 import matplotlib.patches as mpatches  # Import patches to create custom legend markers
 import math
+from matplotlib.lines import Line2D # for custom legend
+
 
 # for upset plots
 import upsetplot
@@ -277,7 +279,7 @@ def proportion_polar_plot(df_list, plot_individuals=False, title=None,
     return(fig)
 
 
-def area_proportion_dot_plot(df, area, title=None, err="se", add_legend=True, to_plot="proportion", ylim=(0)):
+def area_proportion_dot_plot(data, area=None, title=None, err="se", add_legend=True, to_plot="proportion", ylim=(0)):
     """_summary_
 
     Args:
@@ -286,17 +288,20 @@ def area_proportion_dot_plot(df, area, title=None, err="se", add_legend=True, to
         err (str): error bar to plot for sns.pointplot(), can be "ci", "pi", "se", or "sd"
     """
 
-    area_df = df[df["area"]==area]
+    if area:
+        df = data[data["area"]==area]
+    else:
+        df = data.copy()
 
     # means = area_df.groupby('species')['proportion'].mean() # need means for plotting lines
 
     fig, ax = plt.subplots()
 
-    strip = sns.stripplot(data=area_df, x="species", y=to_plot, hue="species", size=10, ax=ax)
+    strip = sns.stripplot(data=df, x="species", y=to_plot, hue="species", size=10, ax=ax)
     # violin = sns.violinplot(area_df, x='species',y="proportion",
     #             split=True, hue ='species', inner = None, 
     #             palette="pastel",legend=False)
-    point = sns.pointplot(data=area_df, x="species", y=to_plot, hue="species", units='mice', 
+    point = sns.pointplot(data=df, x="species", y=to_plot, hue="species", units='mice', 
                           color='black', markers='+', ax=ax, errorbar=err) # plots mean and 95 confidence interval:
 
     # mm_line = mlines.Line2D([0, 1], [means["MMus"], means["MMus"]], color=blue_cmp.colors[150])
@@ -795,5 +800,64 @@ def stvmm_area_scatter_individ(data, data_prop, title="", log=False,
 
     # add title
     plt.title(title)
+
+    return(fig)
+
+
+def plot_cdf(data, plot_areas, log=True, title="", color_by="species", colors=[blue_cmp.colors[255], orange_cmp.colors[255]],
+             individual=True, meta=metadata):
+    """Takes in countN data and returns cdf plots
+
+    Args:
+        data (list): list of DataFrames of count(N), where each element in animal
+        plot_areas (list): list of strings of areas to include in final output
+        log (bool, optional): Whether to use log on axis scale. Defaults to True.
+        title (str, optional): figure title. Defaults to "".
+        color_by (str, optional): Can be "mice", "species", or "dataset", what to label as metadata. Defaults to "species".
+        colors (list, optional): colors used to label cdfs. Defaults to [blue_cmp.colors[255], orange_cmp.colors[255]].
+        individual (bool, optional): _description_. Defaults to True.
+        meta (_type_, optional): _description_. Defaults to metadata.
+    """
+
+
+    # calculate ecdf per animal and put into dataframe
+    cdf_df = dfs_to_cdf(data, plot_areas=plot_areas, metadata=meta)
+
+    # calculate number of axes needed
+    n = math.ceil(len(plot_areas)/5) # round up divide by 4 = axs rows
+
+    fig, axs = plt.subplots(n, 5, figsize=(20, 5*n))
+
+    i = 0
+    for ax in axs.flat:
+
+        if i < (n*5 - 1):
+            area = plot_areas[i]
+
+            plot = cdf_df[cdf_df['area']==area]
+            
+            groups = plot[color_by].unique()
+
+            plot_1 = plot[plot[color_by] ==groups[0]]
+            plot_2 = plot[plot[color_by] ==groups[1]]
+
+            sns.lineplot(plot_1, x="x", y="cdf", estimator=None, units="mice", color=colors[0], ax=ax) # plots individual mice
+            sns.lineplot(plot_2, x="x", y="cdf", estimator=None, units="mice", color=colors[1], ax=ax) # plots individual mice
+            if log:
+                ax.set_xscale("log")
+            ax.set_xlabel("Normalized Counts")
+
+            ax.set_title(area)
+            i+=1
+        else:
+            ax.axis('off')
+
+    # create cutom legend
+    colors = [colors[0], colors[1]]
+    lines = [Line2D([0], [0], color=c, linewidth=3) for c in colors]
+    labels = [groups[0], groups[1]]
+    fig.legend(lines,labels, bbox_to_anchor=(0.75, 0.935))
+
+    plt.suptitle("By "+color_by, y=0.93, size=20)
 
     return(fig)
