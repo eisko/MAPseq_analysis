@@ -439,7 +439,7 @@ def plot_volcano(df, x="log2_fc", y="nlog10_p", title=None, labels="area", shape
 
     plt.title(title)
     # plt.xlabel('log2(fold change)')
-    plt.xlabel('$log_{2}$($\dfrac{STeg\ mean}{MMus\ mean}$)')
+    plt.xlabel('$log_{2}$($\dfrac{STeg}{MMus}$)')
     plt.ylabel('$-log_{10}(p\ value)$')
 
     handles, labels = plt.gca().get_legend_handles_labels()
@@ -534,13 +534,13 @@ def fold_change_ranked(plot, title=None, suptitle=None,
     return(fig)
 
 def stvmm_area_scatter(data, title="", to_plot="proportion", log=False, 
-                       err="sem", ax_limits=None, axis_label="Proportion",
+                       err="sem", ax_limits=None,
                        sp1="STeg", sp2="MMus"):
-    """Plots lab mouse v. singing moues scatter w/ unity line
+    """Plots lab mouse v. singing mouse scatter w/ unity line
 
     Args:
         data (pandas.dataframe): output of calc_fluor
-        to_plot (str, optional): Label of column in data to plot. Defaults to "Fluorescence".
+        to_plot (str, optional): Label of column in data to plot. Defaults to "proportion".
     """
 
     # separate by species
@@ -590,8 +590,8 @@ def stvmm_area_scatter(data, title="", to_plot="proportion", log=False,
 
 
     # add axis labels
-    plt.xlabel("Singing Mouse "+axis_label, color="tab:orange")
-    plt.ylabel("Lab Mouse "+axis_label, color="tab:blue")
+    plt.xlabel(sp1+" "+to_plot, color="tab:orange")
+    plt.ylabel(sp2+" "+to_plot, color="tab:blue")
 
     # add title
     plt.title(title)

@@ -348,6 +348,7 @@ def proportion_ttest(df, sp1="MMus", sp2="STeg", to_plot='proportion'):
     plot["fold_change"] = plot[sp2+"_mean"]/(plot[sp1+"_mean"])
     plot["log2_fc"] = np.log2(plot["fold_change"])
     plot["nlog10_p"] = -np.log10(plot["p-value"])
+    plot["p<0.05"] = plot["p-value"]<0.05
 
     return(plot)
 
@@ -612,12 +613,66 @@ def dfs_to_cdf(df_list, plot_areas, resolution=1000, metadata=metadata):
         for i in range(metadata.shape[0]):
             micei = metadata.loc[i, 'mice']
             mice_bc = area_bc[area_bc['mice']==micei]
-            ecdf = ECDF(mice_bc[area])
-            x = np.logspace(np.log10(area_min), np.log10(area_max), num=resolution)
-            y = ecdf(x)
+            if mice_bc[area].sum()==0:
+                print("NO BARCODES, cannot compute ECDF for", area, metadata.loc[i,'mice'])
+            else:
+                # print(area, metadata.loc[i,"mice"])
+                ecdf = ECDF(mice_bc[area])
+                x = np.logspace(np.log10(area_min), np.log10(area_max), num=resolution)
+                y = ecdf(x)
 
-            int = pd.DataFrame({"x":x, "cdf":y, "mice":metadata.loc[i,"mice"], "species":metadata.loc[i,"species"], 
-                                "dataset":metadata.loc[i,"dataset"], "area":area})
-            cdf_df = pd.concat([cdf_df, int])
+                int = pd.DataFrame({"x":x, "cdf":y, "mice":metadata.loc[i,"mice"], "species":metadata.loc[i,"species"], 
+                                    "dataset":metadata.loc[i,"dataset"], "area":area})
+                cdf_df = pd.concat([cdf_df, int])
 
     return(cdf_df)
+
+def dfs_to_medians(df_list, drop=["AOMCi", "POMCi", "ACAi", "ACAc", "OB", "HIP", "inj_site", 
+                                  'L1_ctl', 'H2O_inj_ctl', 'H2O_targ_ctl'], 
+                   keep=None, cell_type=None, meta=metadata, inj_site="OMCi"):
+    """Output dataframe of medians in format that can be plotted with seaborn
+
+    Args:
+        df_list (list): 
+            - List of dataframes (normalized counts) of neurons/BC by areas
+        drop (list, optional): 
+            - Defaults to ["AOMCi", "POMCi", "inj_site", 'L1_ctl', 'H2O_inj_ctl', 'H2O_targ_ctl']
+            - list of areas/columns to drop before calculating proportions
+        cell_type (string, optional): 
+            - Specify cell types in df, either IT, CT or PT
+            - Defaults to None
+
+    Returns:
+        plot_df (pandas_dataframe):
+            - returns dataframe in format for seaborn plotting
+            - columns = areas, and other metadata
+    """
+
+    plot_df = pd.DataFrame(columns=["area", "median", "mice", "species", "dataset"])
+
+    if cell_type == "IT":
+        drop = [inj_site, 'TH', 'HY', 'AMY', 'SNr', 'SCm', 'PG',
+       'PAG', 'BS']
+    elif cell_type == "PT":
+        drop = [inj_site,inj_site[:-1]+"c", 'AUD', "STR"]
+
+    if keep:
+        drop = []
+
+    mice = meta["mice"]
+    species = meta["species"]
+    dataset = meta["dataset"]
+
+    for i in range(len(df_list)):
+        df = df_list[i].drop(drop, axis=1)
+        if keep:
+            df = df.loc[:, keep] # just subset keep columns
+
+        # only keep nonzero BC to calculate median
+        df.replace(0, np.nan, inplace=True)
+        medians = df.median(axis=0)
+        df_add = pd.DataFrame({"area":medians.index.values, "median":medians.values, 
+        "mice":mice[i], "species":species[i], "dataset":dataset[i]})
+        plot_df = pd.concat([plot_df, df_add])
+    
+    return plot_df
