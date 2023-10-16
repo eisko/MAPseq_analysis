@@ -804,7 +804,7 @@ def stvmm_area_scatter_individ(data, data_prop, title="", log=False,
     return(fig)
 
 
-def plot_cdf(data, plot_areas, log=True, title="", color_by="species", colors=[blue_cmp.colors[255], orange_cmp.colors[255]],
+def plot_cdf(data, plot_areas, log=True, title=None, color_by="species", colors=[blue_cmp.colors[255], orange_cmp.colors[255]],
              individual=True, meta=metadata):
     """Takes in countN data and returns cdf plots
 
@@ -858,6 +858,9 @@ def plot_cdf(data, plot_areas, log=True, title="", color_by="species", colors=[b
     labels = [groups[0], groups[1]]
     fig.legend(lines,labels, bbox_to_anchor=(0.75, 0.935))
 
-    plt.suptitle("By "+color_by, y=0.93, size=20)
+    if title:
+        plt.suptitle(title, y=0.93, size=20)
+    else:
+        plt.suptitle("By "+color_by, y=0.93, size=20)
 
     return(fig)
