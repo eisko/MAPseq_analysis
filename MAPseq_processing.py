@@ -386,7 +386,7 @@ def calc_PAB(df, drop=["OMCi", "type"], cell_type=None, inj_site="OMCi"):
     return(PAB, areas)
 
 def df_to_motif_proportion(df, areas, proportion=True):
-    """Plot upset plot based on given data and area list
+    """Make series to feed into upset plot based on given data and area list
 
     Args:
         df (pd.DataFrame): df containing bc x area
@@ -676,3 +676,40 @@ def dfs_to_medians(df_list, drop=["AOMCi", "POMCi", "ACAi", "ACAc", "OB", "HIP",
         plot_df = pd.concat([plot_df, df_add])
     
     return plot_df
+
+
+def motif_simulation(data, plot_areas=["OMCc", "AUD", "AUD"], reps=500):
+    """Given binary dataset (BC x area), permutate w/in column to break column dependence
+        Permutation reps defined by reps
+        return array where dim0=simulation, and dim1=motif, and list of motifs that correspond to dim1
+        NOTE: number of reps won't change mean/std, but will make simulated distribution more normal
+
+    Args:
+        data (DataFrame): Dataframe of neurons x area (often concatenated data per species)
+        plot_areas (list, optional): area to use to make motive combinations. Defaults to ["OMCc", "AUD", "AUD"].
+        reps (int, optional): Number of permutations to simulate. Defaults to 100.
+        seed (int, optional): Seed to set random state for reproducible results. Defaults to 10.
+    """
+
+
+    # 1. random shuffle w/in columns to break dependence
+    # 2. calculate freq of each motif
+    # 3. repeat 1/2 for 100+ times
+    shuffle_prop_reps = []
+    for n in range(reps):
+        shuffle = data.apply(lambda x: x.sample(frac=1).values)
+        comb_prop = df_to_motif_proportion(shuffle, areas=plot_areas, proportion=True)
+        shuffle_prop_reps.append(comb_prop)
+
+    # 4. Plot histogram of simulations per area
+
+    area_comb = []
+    for i in range(len(plot_areas)):
+        n = i+1
+        area_comb.append(list(combinations(plot_areas, n)))
+    motif_list = list(chain.from_iterable(area_comb)) # flatten list
+
+
+    simulations = np.array(shuffle_prop_reps)
+
+    return(motif_list, simulations)

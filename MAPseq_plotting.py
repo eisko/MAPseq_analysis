@@ -494,17 +494,26 @@ def pab_heatmap(array, areas, title=None, cmap=None):
 
 
 def upset_plot(plot_s, title=None, suptitle=None, facecolor="tab:blue", shading_color="lightgray",
-               ymin=0, ymax=0.5):
+               ymin=0, ymax=0.5, sortby="input", sort_cat="input", with_lines=True, show_counts=False):
     """upset plot with specialized parameters
 
     Args:
         plot_s (Pandas series?): output of from_membership() from upsetplot package
         face_color (str, optional): Color for bars, only takes string colors. Defaults to "tab:blue".
         shading_color (str, optional): only takes strings. Defaults to "lightgray".
+        ymin (float/int, optional): min for y axis. Defaults to 0.
+        ymax (float, optional): max for y axis. Defaults to 0.5.
+        sortby (str, optional): way to sort motifs, can be: {'cardinality', 'degree', 
+                                '-cardinality', '-degree', 'input', '-input'}. Defaults to "input".
+        sort_cat (str, optional): Way to sort categoreis, can be: ["cardinality", "-cardinality",
+                                    "input", "-input"]. Defaults to "input".
+        with_lines (bool, optional): whether to plot motif lines. Defaults to True.
+        show_counts (bool, optional): whether plot counts or not. Defaults to False.
     """
 
     # fig = plt.subplot()
-    upsetplot.plot(plot_s, facecolor=facecolor, shading_color=shading_color)
+    upsetplot.plot(plot_s, facecolor=facecolor, shading_color=shading_color, sort_by=sortby,
+                   sort_categories_by=sort_cat, with_lines=with_lines, show_counts=show_counts)
     plt.title(title, fontsize=18)
     plt.suptitle(suptitle, x=0.56, y=0.88, fontsize=10)
     plt.ylim(ymin, ymax)
@@ -864,3 +873,60 @@ def plot_cdf(data, plot_areas, log=True, title=None, color_by="species", colors=
         plt.suptitle("By "+color_by, y=0.93, size=20)
 
     return(fig)
+
+
+def fancy_upsetplot(data, plot_areas, reps=500, title="", subset=None, color="tab:orange",
+                    ymax=0.6, plot_legend=True):
+    """Given data of BCxAreas, generate upset plot with simulated/permutated data and counts
+
+    Args:
+        data (DataFrame): Dataframe of BC x areas
+        plot_areas (list): List of string of areas to generate motifs
+        reps (int): Number of simulations/permutations to run. Defaults to 500.
+        title (str, optional): String to use as title. Defaults to "".
+        subset (str, optional): area wish to subset motifs on. Defaults to None.
+        color (str, optional): Color for bar graphs. Defaults to "tab:orange".
+        ymax (float, optional): max on yaxis. Defaults to 0.6.
+        plot_legend (bool, optional): Whether to plot legend or not. Defaults to True.
+    """
+    motifs, simulations = motif_simulation(data, plot_areas=plot_areas, reps=500)
+
+    # 5. plot motif means in upset plot
+
+    # generate proportions for motifs (counts encounter problems in figure size???)
+    motif_prop = df_to_motif_proportion(data, plot_areas, proportion=True)
+    # generate motif counts
+    motif_counts =df_to_motif_proportion(data, plot_areas, proportion=False)
+
+    # if subset specified, extract motifs that project to area specified
+    if subset:
+        motif_areas = motif_prop.index.names
+        subset_idx = motif_areas.index(subset)
+        idx = [i for i, x in enumerate(motif_prop.index) if x[subset_idx]]
+    else:
+        idx = range(motif_prop.shape[0])
+
+
+    # generate mean/std from permuted data
+    means = simulations.mean(axis=0)
+    x = list(range(len(idx)))
+    y = means
+    yerr = simulations.std(axis=0)
+
+
+    upset_plot(motif_prop[idx],  facecolor=color, ymax=ymax)
+    # upsetplot.add_catplot(kind="point", y)
+    plt.scatter(x,y[idx], color="black", marker="_", s=50, zorder=10)
+    plt.errorbar(x, y[idx], 
+                yerr=yerr[idx], fmt='|', color="black", zorder=11)
+
+    # label counts for each motif
+    for i in x:
+        plt.text(x=i, y=means[idx][i]+0.04, s=str(motif_counts[idx][i]), ha="center", fontsize=8, zorder=12)
+
+    if plot_legend:
+        legend = mlines.Line2D([], [], color="black", marker="+", linewidth=0, label="sim mean/std")
+        plt.legend(handles=[legend], bbox_to_anchor=(-0.25, 1))
+    plt.title("Total Neurons="+str(data.shape[0]), pad=10, fontsize=10)
+    plt.suptitle(title, y=1, fontsize=18)
+    plt.show()
