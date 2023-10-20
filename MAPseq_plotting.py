@@ -15,6 +15,7 @@ from scipy import stats
 import matplotlib.patches as mpatches  # Import patches to create custom legend markers
 import math
 from matplotlib.lines import Line2D # for custom legend
+from matplotlib.markers import MarkerStyle # used to plot open circles
 
 
 # for upset plots
@@ -189,6 +190,57 @@ def single_neuron_bar(df, neuron, figsize=(6.4, 0.5), label=None, ylim=1400,
     
     return(fig)
 
+def single_neuron_plot(df, neuron, figsize=(6.4, 0.5), label=None, ylim=None,
+                          sort_by=['type'], drop=["OMCi", "type"], cmap=orange_cmp,
+                          kind="bar", ylog=False):
+    """_summary_
+
+    Args:
+        df (dataframe): must be normalized count data
+        neuron (int): index of neuron to plot
+        figsize (tuple, optional): _description_. Defaults to (6.4, 0.5).
+        label (string, optional): _description_. Defaults to None.
+        sort_by (list, optional): _description_. Defaults to ['type'].
+        drop (list, optional): _description_. Defaults to ["OMCi", "type"].
+        cmap (colormap, optional): _description_. Defaults to orange_cmp.
+        kind (str, optional): What kind of plot to make, can be "bar", "line", or "heatmap". Defaults to "bar".
+    """
+    fig = plt.figure(figsize=figsize)
+
+    plot = df.copy()
+
+    plot = df.replace({"IT":0.25, "CT":0.5, "PT":0.75})
+    plot = plot.sort_values(by=sort_by).reset_index(drop=True)
+    plot = plot.drop(drop, axis=1)
+
+
+    ineuron = plot.iloc[neuron,:]
+    plotn = pd.DataFrame(ineuron).T
+
+    areas = plotn.columns.values
+    values = plotn.iloc[0].values
+    values = values/values.max() # row normalized
+
+    if kind=="bar":
+        plt.bar(areas, values, color=cmap.colors[255])
+    elif kind=="line":
+        plt.plot(areas, values, color=cmap.colors[255])
+    elif kind=="heatmap":
+        sns.heatmap(plotn.drop(drop, axis=1), cmap=cmap, cbar=False)
+        plt.gca().get_yaxis().set_visible(False)
+
+    plt.text(-2, 0.55, label, va="center_baseline")
+
+    # set yaxis limits if given
+    if ylim:
+        plt.ylim(ylim)
+
+    # set y axis on log scale if given
+    if ylog:
+        plt.yscale("log")
+    
+    return(fig)
+
 
 def proportion_polar_plot(df_list, plot_individuals=False, title=None,
                           drop=["OMCi","STR", "TH", "type"], keep=None, cell_type=None, 
@@ -279,13 +331,19 @@ def proportion_polar_plot(df_list, plot_individuals=False, title=None,
     return(fig)
 
 
-def area_proportion_dot_plot(data, area=None, title=None, err="se", add_legend=True, to_plot="proportion", ylim=(0)):
-    """_summary_
+def area_proportion_dot_plot(data, area=None, title=None, err="se", add_legend=True,
+                              to_plot="proportion", ylim=(0), resample=False):
+    """Given area proportions labeled by area and species, plot dot plots of area proportions.
 
     Args:
         df (DataFrame): Output from dfs_to_proportion
         area (str): area to plot
-        err (str): error bar to plot for sns.pointplot(), can be "ci", "pi", "se", or "sd"
+        err (str): error bar to plot for sns.pointplot(), can be "ci", "pi", "se", or "sd". Defaults to "se".
+        title (str): Title to apply to plot
+        add_legend (bool, optional): Specify whether to include legend or not. Defaults to True.
+        to_plot (str, optional): what column name to plot. Defaults to "propotion".
+        ylim (int, optional): Lower bound for yaxis. Defaults to (0).
+        resample (bool, optional): Determines whether to plot resampled propotions or not. Defaults to False.
     """
 
     if area:
@@ -929,4 +987,62 @@ def fancy_upsetplot(data, plot_areas, reps=500, title="", subset=None, color="ta
         plt.legend(handles=[legend], bbox_to_anchor=(-0.25, 1))
     plt.title("Total Neurons="+str(data.shape[0]), pad=10, fontsize=10)
     plt.suptitle(title, y=1, fontsize=18)
-    plt.show()
+    # plt.show()
+
+
+def dot_plot_resample(data, area=None, title=None, err="se", add_legend=False,
+                              to_plot="proportion", ylim=(0)):
+    """Plot open/closed circle of proportions per area for data and resampled data.
+
+    Args:
+        data (DataFrame): Dataframe of proportions, included resampled data.
+        area (str, optional): Area to plot. Defaults to None.
+        title (str, optional): Title for plot. Defaults to None.
+        err (str, optional): Error to plot, can be "ci", "pi", "se", or "sd". Defaults to "se".
+        add_legend (bool, optional): Whether to add legend labeling mean/err. Defaults to False.
+        to_plot (str, optional): Column to plot. Defaults to "proportion".
+        ylim (tuple, optional): lower bound for yaxis. Defaults to (0).
+    """
+
+    if area:
+        df = data[data["area"]==area]
+    else:
+        df = data.copy()
+
+
+    # add column for xaxis plotting
+    df['xaxis'] = df['species'].replace({"MMus":0, "MMus_resampled":1, "STeg":2, "STeg_resampled":3})
+
+
+    fig, ax = plt.subplots()
+
+    # plot mean and error bar for each species
+    sns.pointplot(data=df, x="xaxis", y=to_plot, hue="species", units='mice', 
+                          color='black', markers='+', ax=ax, errorbar=err) # plots mean and 95 confidence interval:
+
+    # plot proportions w/ closed/open circles
+    colors=["tab:blue", "tab:blue", "tab:orange", "tab:orange"]
+    markers = ["o", MarkerStyle('o', fillstyle="none"), "o", MarkerStyle('o', fillstyle="none")]
+    for i in range(4):
+        df_temp = df[df['xaxis']==i]
+        ax.scatter(x=df_temp["xaxis"], y=df_temp["proportion"], c=colors[i], marker=markers[i], s=100)
+
+
+    ax.set_xlabel("")
+
+    xtick_labels = ["MMus", "MMus_resampled", "STeg", "STeg_resampled"]
+    ax.set_xticklabels(xtick_labels)
+
+    plt.title(title, size=20)
+    plt.ylim(ylim) # make sure y axis starts at 0
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+
+    if add_legend:
+        legend = mlines.Line2D([], [], color="black", marker="+", linewidth=0, label="mean, "+err)
+        plt.legend(handles=[legend], loc="lower right")
+    else:
+        plt.legend([],[], frameon=False)
+
+
+    return(fig)

@@ -713,3 +713,44 @@ def motif_simulation(data, plot_areas=["OMCc", "AUD", "AUD"], reps=500):
     simulations = np.array(shuffle_prop_reps)
 
     return(motif_list, simulations)
+
+def resample_neurons(data, metadata=metadata, random_state=10, species="MMus", sample_ns=None):
+    """Given list of dataframe, sample from combined neurons/cells (with replacement), in equivalent numbers
+    to singing mouse (or sample_ns) cells/brain. Returns list where each element is dataframe of neurons w/ numbers equivalent to ns.
+
+    Args:
+        data (list): List of pandas dataframes where each row is a different cell/neuron
+        metadata (DataFrame, optional): Metadata used to determine which df in data is lab/singing mouse. 
+                                        Defaults to metadata.
+        random_state (int, optional): Set random state to use for repeatable sampling.
+                                        Defaults to 10.
+        species (str, optional): Species to sample. Defaults to "MMus".
+        sample_ns (list, optional): List of int use as sample size per 'brain', if none defaults to singing mouse brain size.
+                                         Defaults to None.
+    """
+
+    all = [data[i] for i in range(metadata.shape[0]) if metadata.loc[i,'species']==species]
+    all = pd.concat(all).reset_index(drop=True)
+
+    # print("mm_all.shape[0]", mm_all.shape[0])
+    pool = all.copy()
+    samp = []
+
+    ns = []
+    if sample_ns:
+        ns = sample_ns
+    else:
+        # get steg sample neuron sizes
+        for i in range(metadata.shape[0]):
+            if metadata.loc[i,'species']=="STeg":
+                ns.append(data[i].shape[0])
+
+
+    for i in range(len(ns)):
+        n = ns[i]
+        int = pool.sample(n, random_state=random_state+i) # can't have same random_state for every round or will sample the same neurons
+        idx = int.index
+
+        samp.append(int.reset_index(drop=True))
+
+    return(samp)
