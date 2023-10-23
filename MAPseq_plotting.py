@@ -602,7 +602,7 @@ def fold_change_ranked(plot, title=None, suptitle=None,
 
 def stvmm_area_scatter(data, title="", to_plot="proportion", log=False, 
                        err="sem", ax_limits=None,
-                       sp1="STeg", sp2="MMus"):
+                       sp1="STeg", sp2="MMus", line_up_limit=1):
     """Plots lab mouse v. singing mouse scatter w/ unity line
 
     Args:
@@ -651,7 +651,7 @@ def stvmm_area_scatter(data, title="", to_plot="proportion", log=False,
         plt.yscale("log")
 
     # plot unity line
-    x = np.linspace(0,1, 5)
+    x = np.linspace(0,line_up_limit, 5)
     y = x
     plt.plot(x, y, color='red', linestyle="--", linewidth=0.5)
 
@@ -871,8 +871,8 @@ def stvmm_area_scatter_individ(data, data_prop, title="", log=False,
     return(fig)
 
 
-def plot_cdf(data, plot_areas, log=True, title=None, color_by="species", colors=[blue_cmp.colors[255], orange_cmp.colors[255]],
-             individual=True, meta=metadata):
+def plot_cdf(data, plot_areas, log=True, title="", color_by="species", colors=[blue_cmp.colors[255], orange_cmp.colors[255]],
+             individual=True, meta=metadata, legend=True):
     """Takes in countN data and returns cdf plots
 
     Args:
@@ -893,12 +893,17 @@ def plot_cdf(data, plot_areas, log=True, title=None, color_by="species", colors=
     # calculate number of axes needed
     n = math.ceil(len(plot_areas)/5) # round up divide by 4 = axs rows
 
-    fig, axs = plt.subplots(n, 5, figsize=(20, 5*n))
+    if len(plot_areas)==1:
+        fig, ax = plt.subplots(1,1, figsize=(5,5))
+        ax_list = [ax]
+    else:
+        fig, axs = plt.subplots(n, 5, figsize=(20, 5*n))
+        ax_list = axs.flat
 
     i = 0
-    for ax in axs.flat:
+    for ax in ax_list:
 
-        if i < (n*5 - 1):
+        if i < len(plot_areas):
             area = plot_areas[i]
 
             plot = cdf_df[cdf_df['area']==area]
@@ -920,14 +925,15 @@ def plot_cdf(data, plot_areas, log=True, title=None, color_by="species", colors=
             ax.axis('off')
 
     # create cutom legend
-    colors = [colors[0], colors[1]]
-    lines = [Line2D([0], [0], color=c, linewidth=3) for c in colors]
-    labels = [groups[0], groups[1]]
-    fig.legend(lines,labels, bbox_to_anchor=(0.75, 0.935))
+    if legend:
+        colors = [colors[0], colors[1]]
+        lines = [Line2D([0], [0], color=c, linewidth=3) for c in colors]
+        labels = [groups[0], groups[1]]
+        fig.legend(lines,labels, bbox_to_anchor=(0.75, 0.935))
 
-    if title:
+    if title!="":
         plt.suptitle(title, y=0.93, size=20)
-    else:
+    elif title=="":
         plt.suptitle("By "+color_by, y=0.93, size=20)
 
     return(fig)

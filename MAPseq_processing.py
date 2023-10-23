@@ -72,6 +72,46 @@ def dfs_preprocess_counts(df_list, drop=["OMCi", "type"]):
 
     return out_list
 
+def df_combine_areas(df_list, to_drop = ['OB', 'ACAi', 'ACAc', 'HIP', 'L1_ctl', 'H2O_inj_ctl', 'H2O_targ_ctl', 'inj_site'],
+                      combine=["OMC", "STR", "PAG"], col_order=['OMCi', 'OMCc', 'AUD', 'STR', 'TH', 'HY', 'AMY', 'PAG', 'SNr', 'SCm', 'PG', 'RN'], binary=False):
+    """Given list of dataframes, combine areas specified in 'combine' and output new list of dataframes
+
+    Args:
+        df_list (list): List of pd.DataFrames, can be binarized, count, or normalized count data
+        to_drop (list, optional): List of areas/columns to drop. Defaults to ['OB', 'ACAi', 'ACAc', 'HIP', 'L1_ctl', 'H2O_inj_ctl', 'H2O_targ_ctl', inj_site].
+        combine (list, optional): List of areas to combine, must be OMC,STR,PAG. Defaults to ["OMC", "STR", "PAG"].
+        col_order (list, optional): List of columns in order for final output. Defaults to
+        binary (bool, optional): Whether input file is binary or not. Defaults to False.
+    """
+
+    # drop unecessary columns
+    df_drop = [df.drop(to_drop, axis=1) for df in df_list]
+
+    df_combine = []
+    # combine areas
+    for i in range(len(df_list)):
+        df = df_drop[i]
+        for area in combine:
+            if area == "OMC":
+                # combine sites
+                df["OMCi"] = df["AOMCi"]+df["POMCi"]
+                df["OMCc"] = df["AOMCc"] + df["POMCc"]
+                # drop sites
+                df = df.drop(["AOMCi", "POMCi", "AOMCc", "POMCc"], axis=1)
+            if area == "STR":
+                df["STR"] = df["STRd"] + df["STRv"]
+                df = df.drop(["STRd", "STRv"], axis=1)
+            if area == "PAG":
+                df["PAG"] = df["APAGd"]+df["APAGv"]+df["PPAGd"]+df["PPAGv"]
+                df = df.drop(["APAGd", "APAGv", "PPAGd", "PPAGv"], axis=1)
+        df_combine.append(df)
+
+    df_out = [df[col_order] for df in df_combine]
+
+    return(df_out)
+
+
+
 
 def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"], pt_areas=["AMY","HY","SNr","SCm","PG","PAG","BS"]):
     """
