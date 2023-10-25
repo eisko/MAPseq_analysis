@@ -1052,3 +1052,51 @@ def dot_plot_resample(data, area=None, title=None, err="se", add_legend=False,
 
 
     return(fig)
+
+def plot_motif_hist_prop(data, plot_areas=["OMCc", "AUD", "STR"], 
+                         title=None, color="tab:orange", reps=500, subset_area=None,
+                         subset_idx=None):
+    """Create plots of histograms w/ 
+
+    Args:
+        data (_type_): _description_
+        to_plot (list, optional): _description_. Defaults to ["OMCc", "AUD", "STR"].
+        color (str, optional): _description_. Defaults to "tab:orange".
+        reps (int, optional): _description_. Defaults to 500.
+    """
+
+    motifs, simulations = motif_simulation(data, plot_areas=plot_areas, reps=reps, subset=subset_area)
+    motif_prop = df_to_motif_proportion(data, areas=plot_areas, proportion=True, subset=subset_area)
+
+    # subset by idx if given
+    if subset_idx:
+        start = subset_idx[0]
+        end = subset_idx[1]
+        motifs = motifs[start:end]
+        simulations = simulations[start:end]
+        motif_prop = motif_prop[start:end]
+
+
+    # calculate number of axes needed
+    n = math.ceil(len(motifs)/5) # round up divide by 4 = axs rows
+
+
+    fig, axs = plt.subplots(n, 5, figsize=(20, 5*n))
+
+    i = 0
+    for ax in axs.flat:
+
+        if i < len(motifs):
+            ax.hist(simulations[:,i], color=color)
+            ax.set_title(motifs[i])
+            ax.axline((motif_prop[i], 0),(motif_prop[i], 10),
+            color="grey", linestyle="--")
+        else:
+            ax.axis('off')
+        
+        i+=1
+
+    if title:
+        plt.suptitle(title, fontsize=20)
+    
+    return(fig)

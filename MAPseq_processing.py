@@ -425,7 +425,7 @@ def calc_PAB(df, drop=["OMCi", "type"], cell_type=None, inj_site="OMCi"):
                 PAB[i,j] = n_overlap/total
     return(PAB, areas)
 
-def df_to_motif_proportion(df, areas, proportion=True):
+def df_to_motif_proportion(df, areas, proportion=True, subset=None):
     """Make series to feed into upset plot based on given data and area list
 
     Args:
@@ -457,6 +457,12 @@ def df_to_motif_proportion(df, areas, proportion=True):
             comb_count.append(neurons.shape[0])
 
     plot_s = from_memberships(area_comb_list, data=comb_count)
+
+    if subset:
+        motif_areas = plot_s.index.names
+        subset_idx = motif_areas.index(subset)
+        idx = [i for i, x in enumerate(plot_s.index) if x[subset_idx]]
+        plot_s = plot_s[idx]
 
     return(plot_s)
 
@@ -718,7 +724,7 @@ def dfs_to_medians(df_list, drop=["AOMCi", "POMCi", "ACAi", "ACAc", "OB", "HIP",
     return plot_df
 
 
-def motif_simulation(data, plot_areas=["OMCc", "AUD", "AUD"], reps=500):
+def motif_simulation(data, plot_areas=["OMCc", "AUD", "STR"], reps=500, subset=None):
     """Given binary dataset (BC x area), permutate w/in column to break column dependence
         Permutation reps defined by reps
         return array where dim0=simulation, and dim1=motif, and list of motifs that correspond to dim1
@@ -741,7 +747,6 @@ def motif_simulation(data, plot_areas=["OMCc", "AUD", "AUD"], reps=500):
         comb_prop = df_to_motif_proportion(shuffle, areas=plot_areas, proportion=True)
         shuffle_prop_reps.append(comb_prop)
 
-    # 4. Plot histogram of simulations per area
 
     area_comb = []
     for i in range(len(plot_areas)):
@@ -751,6 +756,14 @@ def motif_simulation(data, plot_areas=["OMCc", "AUD", "AUD"], reps=500):
 
 
     simulations = np.array(shuffle_prop_reps)
+
+    # if subset specified, extract motifs that project to area specified
+    if subset:
+        motif_areas = comb_prop.index.names
+        subset_idx = motif_areas.index(subset)
+        idx = [i for i, x in enumerate(comb_prop.index) if x[subset_idx]]
+        motif_list = [motif_list[i] for i in idx]
+        simulations = simulations[idx]
 
     return(motif_list, simulations)
 
