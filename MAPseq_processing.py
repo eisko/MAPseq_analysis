@@ -431,6 +431,8 @@ def df_to_motif_proportion(df, areas, proportion=True, subset=None):
     Args:
         df (pd.DataFrame): df containing bc x area
         areas (list): List of areas (str) to be plotted
+        proportion (bool, optional): Whether to output counts or proportions. Defaults to True.
+        subset (str, optional): Whether to subset on certain brain area (e.g. 'PAG'). Defaults to None.
     """
 
     # generate all combinations of areas in true/false list
@@ -465,6 +467,38 @@ def df_to_motif_proportion(df, areas, proportion=True, subset=None):
         plot_s = plot_s[idx]
 
     return(plot_s)
+
+def df_to_calc_pab_proportions(data, combinations):
+    """Given dataframe of cells and index of combinations (generated from df_to_motif_prportions),
+    return series similar to output for df_to_motif_proportions
+
+    Args:
+        data (DataFrame): DataFrame of BC x areas, binary
+        combinations (MultiIndex): Index from output of df-to_motif_proportions
+    """
+
+    # get brain areas specified in combinations
+    names = list(combinations.names)
+    
+    # subset data to just columns used in motifs
+    data_subset = data.loc[:,names]
+
+    # get bulk proportions across those areas
+    bulk_prop = data_subset.sum(axis=0)/data.shape[0]
+
+    # calculate expected motif proportion based on product of bulk proportions
+    pab_proportions = []
+    for i in range(combinations.shape[0]):
+        combos_bulk = bulk_prop[list(combinations[i])]
+        product = 1
+        for j in combos_bulk:
+            product = product*j
+        
+        pab_proportions.append(product)
+
+    motif_pab_prop = pd.Series(pab_proportions, index=combinations)
+
+    return(motif_pab_prop)
 
 def fold_change_calc(df_type, meta=metadata, drop=["OMCi","type"], inj_site="OMCi"):
     """Take df_list with cells label by type, calculate fold change b/w 2 groups.
@@ -743,7 +777,7 @@ def motif_simulation(data, plot_areas=["OMCc", "AUD", "STR"], reps=500, subset=N
     # 3. repeat 1/2 for 100+ times
     shuffle_prop_reps = []
     for n in range(reps):
-        shuffle = data.apply(lambda x: x.sample(frac=1).values)
+        shuffle = data.apply(lambda x: x.sample(frac=1).values) # added random_state so same across runs
         comb_prop = df_to_motif_proportion(shuffle, areas=plot_areas, proportion=True)
         shuffle_prop_reps.append(comb_prop)
 
@@ -756,14 +790,14 @@ def motif_simulation(data, plot_areas=["OMCc", "AUD", "STR"], reps=500, subset=N
 
 
     simulations = np.array(shuffle_prop_reps)
-
+    # print("simulations.shape pre subset: ,", simulations.shape)
     # if subset specified, extract motifs that project to area specified
     if subset:
         motif_areas = comb_prop.index.names
         subset_idx = motif_areas.index(subset)
         idx = [i for i, x in enumerate(comb_prop.index) if x[subset_idx]]
         motif_list = [motif_list[i] for i in idx]
-        simulations = simulations[idx]
+        simulations = simulations[:,idx]
 
     return(motif_list, simulations)
 

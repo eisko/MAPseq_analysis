@@ -1055,7 +1055,7 @@ def dot_plot_resample(data, area=None, title=None, err="se", add_legend=False,
 
 def plot_motif_hist_prop(data, plot_areas=["OMCc", "AUD", "STR"], 
                          title=None, color="tab:orange", reps=500, subset_area=None,
-                         subset_idx=None):
+                         subset_idx=None, plot_pab=False):
     """Create plots of histograms w/ 
 
     Args:
@@ -1067,14 +1067,16 @@ def plot_motif_hist_prop(data, plot_areas=["OMCc", "AUD", "STR"],
 
     motifs, simulations = motif_simulation(data, plot_areas=plot_areas, reps=reps, subset=subset_area)
     motif_prop = df_to_motif_proportion(data, areas=plot_areas, proportion=True, subset=subset_area)
+    pab_proportions = df_to_calc_pab_proportions(data, motif_prop.index)
 
     # subset by idx if given
     if subset_idx:
         start = subset_idx[0]
         end = subset_idx[1]
         motifs = motifs[start:end]
-        simulations = simulations[start:end]
+        simulations = simulations[:,start:end]
         motif_prop = motif_prop[start:end]
+        pab_proportions = pab_proportions[start:end]
 
 
     # calculate number of axes needed
@@ -1091,6 +1093,9 @@ def plot_motif_hist_prop(data, plot_areas=["OMCc", "AUD", "STR"],
             ax.set_title(motifs[i])
             ax.axline((motif_prop[i], 0),(motif_prop[i], 10),
             color="grey", linestyle="--")
+            if plot_pab:
+                ax.axline((pab_proportions[i], 0),(pab_proportions[i], 10),
+            color="grey", linestyle="-")
         else:
             ax.axis('off')
         
@@ -1098,5 +1103,12 @@ def plot_motif_hist_prop(data, plot_areas=["OMCc", "AUD", "STR"],
 
     if title:
         plt.suptitle(title, fontsize=20)
+    
+    if plot_pab:
+        # if plot_pab true, plot legend
+        linestyles = ["--", "-"]
+        lines = [Line2D([0], [0], color="grey", linestyle=l, linewidth=3) for l in linestyles]
+        labels = ["Observed Proportion", "Calculated Proportion - P(A)*P(B)"]
+        fig.legend(lines,labels, bbox_to_anchor=(0.75, 0.935))
     
     return(fig)
