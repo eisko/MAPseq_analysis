@@ -681,6 +681,8 @@ def dfs_to_cdf(df_list, plot_areas, resolution=1000, metadata=metadata):
 
     cdf_df = pd.DataFrame(columns=["x", "cdf", "mice", "species", "dataset", "area"])
 
+    all_ecdfs = {}
+
     # calculate cdf by area, then add by mouse
     for area in plot_areas:
         # just use nonzero BC
@@ -704,8 +706,9 @@ def dfs_to_cdf(df_list, plot_areas, resolution=1000, metadata=metadata):
                 int = pd.DataFrame({"x":x, "cdf":y, "mice":metadata.loc[i,"mice"], "species":metadata.loc[i,"species"], 
                                     "dataset":metadata.loc[i,"dataset"], "area":area})
                 cdf_df = pd.concat([cdf_df, int])
+                all_ecdfs[micei+"_"+area] = ecdf
 
-    return(cdf_df)
+    return(cdf_df, all_ecdfs)
 
 def dfs_to_medians(df_list, drop=["AOMCi", "POMCi", "ACAi", "ACAc", "OB", "HIP", "inj_site", 
                                   'L1_ctl', 'H2O_inj_ctl', 'H2O_targ_ctl'], 
@@ -756,6 +759,26 @@ def dfs_to_medians(df_list, drop=["AOMCi", "POMCi", "ACAi", "ACAc", "OB", "HIP",
         plot_df = pd.concat([plot_df, df_add])
     
     return plot_df
+
+def calc_cdf(data, plot_areas, cdf_val=0.5, meta=metadata):
+    """_summary_
+
+    Args:
+        data (dataset): barcode dataset.
+        plot_areas (list): List of areas to return.
+        cdf_val (float): cdf value to calculate. Defaults to 0.5.
+    """
+    cdf_df, ecdfs = dfs_to_cdf(data, plot_areas=plot_areas)
+
+    cdfn_df = pd.DataFrame(columns=["area", "cdf_"+str(cdf_val), "mice", "species", "dataset"])
+    for a in plot_areas:
+        for i in range(meta.shape[0]):
+            m = meta.loc[i, "mice"]
+            cdfn = ecdfs[m+"_"+a](cdf_val)
+            row = [a, cdfn, m, meta.loc[i, "species"], meta.loc[i, "dataset"]]
+            cdfn_df.loc[len(cdfn_df.index)] = row
+
+    return(cdfn_df)
 
 
 def motif_simulation(data, plot_areas=["OMCc", "AUD", "STR"], reps=500, subset=None):

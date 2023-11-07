@@ -70,7 +70,7 @@ def individ_node_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequ
 
 def sorted_heatmap(df, title=None, sort_by=['type'], sort_ascend=True, drop=['type'], nsample=None, 
                    random_state=10, norm=None, cmap=orange_cmp, cbar=False,
-                   label_neurons=None):
+                   label_neurons=None, col_order=None):
     """_summary_
 
     Args:
@@ -79,6 +79,7 @@ def sorted_heatmap(df, title=None, sort_by=['type'], sort_ascend=True, drop=['ty
         nsample (integer, optional): If prsent, down sample dataframe. Defaults to None.
         random_state (int, optional): If downsample, what random state to use. Defaults to 10.
         label_neurons (dict, option): Dictionary of label:index of neurons to label
+        col_order (list, optional): Order to plot columns. Defaults to None.
     """
 
     if nsample:
@@ -91,13 +92,17 @@ def sorted_heatmap(df, title=None, sort_by=['type'], sort_ascend=True, drop=['ty
     idx = plot.index
     plot = plot.reset_index(drop=True)
 
+    # reorder cols if given
+    if col_order:
+        plot = plot[col_order]
+
     fig=plt.subplot()
     sns.heatmap(plot.drop(drop, axis=1), norm=norm, cmap=cmap, cbar=cbar)
     plt.gca().get_yaxis().set_visible(False)
     plt.title(title)
     if label_neurons:
         for key in label_neurons.keys():
-            plt.text(-0.3,label_neurons[key], key+"-", va="center_baseline")
+            plt.text(-0.3,label_neurons[key], key+"-", va="center_baseline", size=12)
     return(idx, fig)
     
 def single_neuron_heatmap(df, neuron, figsize=(6.4, 0.5), label=None, 
@@ -118,7 +123,7 @@ def single_neuron_heatmap(df, neuron, figsize=(6.4, 0.5), label=None,
     plotn = pd.DataFrame(ineuron).T
     sns.heatmap(plotn.drop(drop, axis=1), cmap=cmap, cbar=False)
     plt.gca().get_yaxis().set_visible(False)
-    plt.text(-0.3, 0.5, label, va="center_baseline")
+    plt.text(-0.3, 0.5, label, va="center_baseline", size=12)
 
     return(fig)
 
@@ -185,7 +190,7 @@ def single_neuron_bar(df, neuron, figsize=(6.4, 0.5), label=None, ylim=1400,
     values = plotn.iloc[0].values
     values = values/values.max() # row normalized
     plt.bar(areas, values, color=cmap.colors[255])
-    plt.text(-2, 0.55, label, va="center_baseline")
+    plt.text(-2, 0.55, label, va="center_baseline", size=12)
     # plt.ylim(0,ylim)
     
     return(fig)
@@ -331,19 +336,69 @@ def proportion_polar_plot(df_list, plot_individuals=False, title=None,
     return(fig)
 
 
-def area_proportion_dot_plot(data, area=None, title=None, err="se", add_legend=True,
-                              to_plot="proportion", ylim=(0), resample=False):
-    """Given area proportions labeled by area and species, plot dot plots of area proportions.
+# def area_proportion_dot_plot(data, area=None, title=None, err="se", add_legend=True,
+#                               to_plot="proportion", ylim=(0), resample=False):
+#     """Given area proportions labeled by area and species, plot dot plots of area proportions.
+
+#     Args:
+#         df (DataFrame): Output from dfs_to_proportion
+#         area (str): area to plot
+#         err (str): error bar to plot for sns.pointplot(), can be "ci", "pi", "se", or "sd". Defaults to "se".
+#         title (str): Title to apply to plot
+#         add_legend (bool, optional): Specify whether to include legend or not. Defaults to True.
+#         to_plot (str, optional): what column name to plot. Defaults to "propotion".
+#         ylim (int, optional): Lower bound for yaxis. Defaults to (0).
+#         resample (bool, optional): Determines whether to plot resampled propotions or not. Defaults to False.
+#     """
+
+#     if area:
+#         df = data[data["area"]==area]
+#     else:
+#         df = data.copy()
+
+#     # means = area_df.groupby('species')['proportion'].mean() # need means for plotting lines
+
+#     fig, ax = plt.subplots()
+
+#     strip = sns.stripplot(data=df, x="species", y=to_plot, hue="species", size=10, ax=ax)
+#     # violin = sns.violinplot(area_df, x='species',y="proportion",
+#     #             split=True, hue ='species', inner = None, 
+#     #             palette="pastel",legend=False)
+#     point = sns.pointplot(data=df, x="species", y=to_plot, hue="species", units='mice', 
+#                           color='black', markers='+', ax=ax, errorbar=err) # plots mean and 95 confidence interval:
+
+#     # mm_line = mlines.Line2D([0, 1], [means["MMus"], means["MMus"]], color=blue_cmp.colors[150])
+#     # st_line = mlines.Line2D([0, 1], [means["STeg"], means["STeg"]], color=orange_cmp.colors[150])
+    
+#     # ax.add_line(mm_line)
+#     # ax.add_line(st_line)
+
+#     plt.title(title, size=20)
+#     plt.ylim(ylim) # make sure y axis starts at 0
+#     ax.spines['right'].set_visible(False)
+#     ax.spines['top'].set_visible(False)
+
+#     if add_legend:
+#         legend = mlines.Line2D([], [], color="black", marker="+", linewidth=0, label="mean, "+err)
+#         plt.legend(handles=[legend], loc="lower right")
+#     else:
+#         plt.legend([],[], frameon=False)
+
+
+#     return(fig)
+
+def dot_plot(data, area=None, title=None, err="se", add_legend=False,
+                              to_plot="proportion", ylim=(0), fig_size=(3.5,3.5)):
+    """Plot open/closed circle of value per area for data and resampled data.
 
     Args:
-        df (DataFrame): Output from dfs_to_proportion
-        area (str): area to plot
-        err (str): error bar to plot for sns.pointplot(), can be "ci", "pi", "se", or "sd". Defaults to "se".
-        title (str): Title to apply to plot
-        add_legend (bool, optional): Specify whether to include legend or not. Defaults to True.
-        to_plot (str, optional): what column name to plot. Defaults to "propotion".
-        ylim (int, optional): Lower bound for yaxis. Defaults to (0).
-        resample (bool, optional): Determines whether to plot resampled propotions or not. Defaults to False.
+        data (DataFrame): Dataframe of proportions, included resampled data.
+        area (str, optional): Area to plot. Defaults to None.
+        title (str, optional): Title for plot. Defaults to None.
+        err (str, optional): Error to plot, can be "ci", "pi", "se", or "sd". Defaults to "se".
+        add_legend (bool, optional): Whether to add legend labeling mean/err. Defaults to False.
+        to_plot (str, optional): Column to plot. Defaults to "proportion".
+        ylim (tuple, optional): lower bound for yaxis. Defaults to (0).
     """
 
     if area:
@@ -351,27 +406,33 @@ def area_proportion_dot_plot(data, area=None, title=None, err="se", add_legend=T
     else:
         df = data.copy()
 
-    # means = area_df.groupby('species')['proportion'].mean() # need means for plotting lines
+
+    # add column for xaxis plotting
+    # df['xaxis'] = df['species'].replace({"MMus":0, "STeg":1, "MMus_resampled":2, "STeg_resampled":3})
+
 
     fig, ax = plt.subplots()
 
-    strip = sns.stripplot(data=df, x="species", y=to_plot, hue="species", size=10, ax=ax)
-    # violin = sns.violinplot(area_df, x='species',y="proportion",
-    #             split=True, hue ='species', inner = None, 
-    #             palette="pastel",legend=False)
-    point = sns.pointplot(data=df, x="species", y=to_plot, hue="species", units='mice', 
-                          color='black', markers='+', ax=ax, errorbar=err) # plots mean and 95 confidence interval:
+    # plot individual value
+    sns.stripplot(data=df, x="species", y=to_plot, hue="species", size=10, ax=ax)
+    # plot mean and error bar for each species
+    sns.pointplot(data=df, x="species", y=to_plot, hue="species", units='mice', 
+                          color='black', markers='+', errorbar=err, ax=ax) # plots mean and 95 confidence interval:
+    # necessary to put mean/error markers on top
+    plt.setp(ax.lines, zorder=100)
+    plt.setp(ax.collections, zorder=100, label="")
 
-    # mm_line = mlines.Line2D([0, 1], [means["MMus"], means["MMus"]], color=blue_cmp.colors[150])
-    # st_line = mlines.Line2D([0, 1], [means["STeg"], means["STeg"]], color=orange_cmp.colors[150])
-    
-    # ax.add_line(mm_line)
-    # ax.add_line(st_line)
+
+    ax.set_xlabel("")
 
     plt.title(title, size=20)
     plt.ylim(ylim) # make sure y axis starts at 0
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
+
+    # set figure size
+    fig = plt.gcf()
+    fig.set_size_inches(fig_size[0],fig_size[1])
 
     if add_legend:
         legend = mlines.Line2D([], [], color="black", marker="+", linewidth=0, label="mean, "+err)
@@ -913,8 +974,13 @@ def plot_cdf(data, plot_areas, log=True, title="", color_by="species", colors=[b
             plot_1 = plot[plot[color_by] ==groups[0]]
             plot_2 = plot[plot[color_by] ==groups[1]]
 
-            sns.lineplot(plot_1, x="x", y="cdf", estimator=None, units="mice", color=colors[0], ax=ax) # plots individual mice
-            sns.lineplot(plot_2, x="x", y="cdf", estimator=None, units="mice", color=colors[1], ax=ax) # plots individual mice
+            if individual:
+                sns.lineplot(plot_1, x="x", y="cdf", estimator=None, units="mice", color=colors[0], ax=ax) # plots individual mice
+                sns.lineplot(plot_2, x="x", y="cdf", estimator=None, units="mice", color=colors[1], ax=ax) # plots individual mice
+            else: 
+                sns.lineplot(plot_1, x="x", y="cdf", ax=ax) # plots mean ci95
+                sns.lineplot(plot_2, x="x", y="cdf", ax=ax) # plots mean ci95
+            
             if log:
                 ax.set_xscale("log")
             ax.set_xlabel("Normalized Counts")
@@ -997,7 +1063,7 @@ def fancy_upsetplot(data, plot_areas, reps=500, title="", subset=None, color="ta
 
 
 def dot_plot_resample(data, area=None, title=None, err="se", add_legend=False,
-                              to_plot="proportion", ylim=(0)):
+                              to_plot="proportion", ylim=(0), fig_size=(3.5,3.5)):
     """Plot open/closed circle of proportions per area for data and resampled data.
 
     Args:
@@ -1017,18 +1083,21 @@ def dot_plot_resample(data, area=None, title=None, err="se", add_legend=False,
 
 
     # add column for xaxis plotting
-    df['xaxis'] = df['species'].replace({"MMus":0, "MMus_resampled":1, "STeg":2, "STeg_resampled":3})
+    df['xaxis'] = df['species'].replace({"MMus":0, "STeg":1, "MMus_resampled":2, "STeg_resampled":3})
 
 
     fig, ax = plt.subplots()
 
     # plot mean and error bar for each species
-    sns.pointplot(data=df, x="xaxis", y=to_plot, hue="species", units='mice', 
+    ax = sns.pointplot(data=df, x="xaxis", y=to_plot, hue="species", units='mice', 
                           color='black', markers='+', ax=ax, errorbar=err) # plots mean and 95 confidence interval:
+    # necessary to put mean/error markers on top
+    plt.setp(ax.lines, zorder=100)
+    plt.setp(ax.collections, zorder=100, label="")
 
     # plot proportions w/ closed/open circles
-    colors=["tab:blue", "tab:blue", "tab:orange", "tab:orange"]
-    markers = ["o", MarkerStyle('o', fillstyle="none"), "o", MarkerStyle('o', fillstyle="none")]
+    colors=["tab:blue", "tab:orange", "tab:blue", "tab:orange"]
+    markers = ["o", "o", MarkerStyle('o', fillstyle="none"), MarkerStyle('o', fillstyle="none"), ]
     for i in range(4):
         df_temp = df[df['xaxis']==i]
         ax.scatter(x=df_temp["xaxis"], y=df_temp["proportion"], c=colors[i], marker=markers[i], s=100)
@@ -1036,13 +1105,17 @@ def dot_plot_resample(data, area=None, title=None, err="se", add_legend=False,
 
     ax.set_xlabel("")
 
-    xtick_labels = ["MMus", "MMus_resampled", "STeg", "STeg_resampled"]
+    xtick_labels = ["MMus", "STeg", "MMus\nresampled", "STeg\nresampled"]
     ax.set_xticklabels(xtick_labels)
 
     plt.title(title, size=20)
     plt.ylim(ylim) # make sure y axis starts at 0
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
+
+    # set figure size
+    fig = plt.gcf()
+    fig.set_size_inches(fig_size[0],fig_size[1])
 
     if add_legend:
         legend = mlines.Line2D([], [], color="black", marker="+", linewidth=0, label="mean, "+err)
