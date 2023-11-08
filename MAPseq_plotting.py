@@ -1112,7 +1112,10 @@ def dot_plot_resample(data, area=None, title=None, err="se", add_legend=False,
     plt.ylim(ylim) # make sure y axis starts at 0
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
-
+    
+    # #
+    # matplotlib.rcParams.update({'font.size': 22})
+    
     # set figure size
     fig = plt.gcf()
     fig.set_size_inches(fig_size[0],fig_size[1])
