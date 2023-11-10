@@ -213,7 +213,7 @@ def dfs_to_node_proportions(df_list, drop=["OMCi", "type"], keep=None, cell_type
     
     return plot_df
 
-def dfs_to_proportions(df_list, drop=["OMCi", "type"], keep=None, cell_type=None, meta=metadata, inj_site="OMCi"):
+def dfs_to_proportions(df_list, drop=["OMCi", "type"], keep=None, cell_type=None, meta=metadata, inj_site="OMCi", aud_rename=False):
     """Output dataframe of proportions in format that can be plotted with seaborn
 
     Args:
@@ -238,7 +238,10 @@ def dfs_to_proportions(df_list, drop=["OMCi", "type"], keep=None, cell_type=None
         drop = [inj_site, 'TH', 'HY', 'AMY', 'SNr', 'SCm', 'PG',
        'PAG', 'BS']
     elif cell_type == "PT":
-        drop = [inj_site,inj_site[:-1]+"c", 'AUD', "STR"]
+        if aud_rename:
+            drop = [inj_site,inj_site[:-1]+"c", 'AUD/TEa', "STR"]
+        else:
+            drop = [inj_site,inj_site[:-1]+"c", 'AUD', "STR"]
 
     if keep:
         drop = []

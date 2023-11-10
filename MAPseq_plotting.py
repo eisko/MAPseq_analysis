@@ -162,7 +162,7 @@ def single_neuron_line(df, neuron, figsize=(6.4, 0.5), label=None, ylim=1400,
     return(fig)
 
 def single_neuron_bar(df, neuron, figsize=(6.4, 0.5), label=None, ylim=1400,
-                          sort_by=['type'], drop=["OMCi", "type"], cmap=orange_cmp):
+                          sort_by=['type'], drop=["OMCi", "type"], cmap=orange_cmp, col_order=None):
     """_summary_
 
     Args:
@@ -185,6 +185,9 @@ def single_neuron_bar(df, neuron, figsize=(6.4, 0.5), label=None, ylim=1400,
 
     ineuron = plot.iloc[neuron,:]
     plotn = pd.DataFrame(ineuron).T
+
+    if col_order:
+        plotn = plotn[col_order]
 
     areas = plotn.columns.values
     values = plotn.iloc[0].values
@@ -489,7 +492,8 @@ def proportion_volcano_plot(df, title=None, labels="area", p_05=True, p_01=True,
     return(fig)
 
 def plot_volcano(df, x="log2_fc", y="nlog10_p", title=None, labels="area", shape=None,
-                 p_05=True, p_01=True, p_bf=None, xlim=(-2,2), legend_loc="upper left"):
+                 p_05=True, p_01=True, p_bf=None, xlim=(-2,2), legend_loc="upper left",
+                 fig_size=(4,4)):
     """output volcano plot based on comparison of species proportional means
 
     Args:
@@ -556,16 +560,25 @@ def plot_volcano(df, x="log2_fc", y="nlog10_p", title=None, labels="area", shape
             fontdict=dict(color='black',size=10))
 
 
-    plt.title(title)
+    plt.title(title, pad=12)
     # plt.xlabel('log2(fold change)')
     plt.xlabel('$log_{2}$($\dfrac{STeg}{MMus}$)')
     plt.ylabel('$-log_{10}(p\ value)$')
 
-    handles, labels = plt.gca().get_legend_handles_labels()
-    plt.legend(handles=handles, loc=legend_loc)
+    if legend_loc:
+        handles, labels = plt.gca().get_legend_handles_labels()
+        plt.legend(handles=handles, loc=legend_loc)
+
 
     # apply axis limits
     plt.xlim(xlim)
+
+    plt.rcParams.update({'font.size': 12})
+
+    # set figure size
+    fig = plt.gcf()
+    fig.set_size_inches(fig_size[0],fig_size[1])
+
 
     return(fig)
 
@@ -933,7 +946,7 @@ def stvmm_area_scatter_individ(data, data_prop, title="", log=False,
 
 
 def plot_cdf(data, plot_areas, log=True, title="", color_by="species", colors=[blue_cmp.colors[255], orange_cmp.colors[255]],
-             individual=True, meta=metadata, legend=True):
+             individual=True, meta=metadata, legend=True, fig_size=(3,3)):
     """Takes in countN data and returns cdf plots
 
     Args:
@@ -949,7 +962,7 @@ def plot_cdf(data, plot_areas, log=True, title="", color_by="species", colors=[b
 
 
     # calculate ecdf per animal and put into dataframe
-    cdf_df = dfs_to_cdf(data, plot_areas=plot_areas, metadata=meta)
+    cdf_df, foo = dfs_to_cdf(data, plot_areas=plot_areas, metadata=meta)
 
     # calculate number of axes needed
     n = math.ceil(len(plot_areas)/5) # round up divide by 4 = axs rows
@@ -997,16 +1010,23 @@ def plot_cdf(data, plot_areas, log=True, title="", color_by="species", colors=[b
         labels = [groups[0], groups[1]]
         fig.legend(lines,labels, bbox_to_anchor=(0.75, 0.935))
 
+    # increase text size
+    plt.rcParams.update({'font.size': 12})
+
     if title!="":
         plt.suptitle(title, y=0.93, size=20)
     elif title=="":
         plt.suptitle("By "+color_by, y=0.93, size=20)
 
+    # set figure size
+    fig = plt.gcf()
+    fig.set_size_inches(fig_size[0],fig_size[1])
+
     return(fig)
 
 
 def fancy_upsetplot(data, plot_areas, reps=500, title="", subset=None, color="tab:orange",
-                    ymax=0.6, plot_legend=True):
+                    ymax=0.6, plot_legend=True, plot_sim=True):
     """Given data of BCxAreas, generate upset plot with simulated/permutated data and counts
 
     Args:
@@ -1019,7 +1039,7 @@ def fancy_upsetplot(data, plot_areas, reps=500, title="", subset=None, color="ta
         ymax (float, optional): max on yaxis. Defaults to 0.6.
         plot_legend (bool, optional): Whether to plot legend or not. Defaults to True.
     """
-    motifs, simulations = motif_simulation(data, plot_areas=plot_areas, reps=500)
+    motifs, simulations = motif_simulation(data, plot_areas=plot_areas, reps=reps)
 
     # 5. plot motif means in upset plot
 
@@ -1046,13 +1066,16 @@ def fancy_upsetplot(data, plot_areas, reps=500, title="", subset=None, color="ta
 
     upset_plot(motif_prop[idx],  facecolor=color, ymax=ymax)
     # upsetplot.add_catplot(kind="point", y)
-    plt.scatter(x,y[idx], color="black", marker="_", s=50, zorder=10)
-    plt.errorbar(x, y[idx], 
-                yerr=yerr[idx], fmt='|', color="black", zorder=11)
+
+    # plot simulation mean and std
+    if plot_sim:
+        plt.scatter(x,y[idx], color="black", marker="_", s=50, zorder=10)
+        plt.errorbar(x, y[idx], 
+                    yerr=yerr[idx], fmt='|', color="black", zorder=11)
 
     # label counts for each motif
     for i in x:
-        plt.text(x=i, y=means[idx][i]+0.04, s=str(motif_counts[idx][i]), ha="center", fontsize=8, zorder=12)
+        plt.text(x=i, y=motif_prop[idx][i]+0.04, s=str(motif_counts[idx][i]), ha="center", fontsize=8, zorder=12)
 
     if plot_legend:
         legend = mlines.Line2D([], [], color="black", marker="+", linewidth=0, label="sim mean/std")
@@ -1063,7 +1086,7 @@ def fancy_upsetplot(data, plot_areas, reps=500, title="", subset=None, color="ta
 
 
 def dot_plot_resample(data, area=None, title=None, err="se", add_legend=False,
-                              to_plot="proportion", ylim=(0), fig_size=(3.5,3.5)):
+                              to_plot="proportion", ylabel="Proportion", ylim=(0), fig_size=(3.5,3.5)):
     """Plot open/closed circle of proportions per area for data and resampled data.
 
     Args:
@@ -1085,7 +1108,6 @@ def dot_plot_resample(data, area=None, title=None, err="se", add_legend=False,
     # add column for xaxis plotting
     df['xaxis'] = df['species'].replace({"MMus":0, "STeg":1, "MMus_resampled":2, "STeg_resampled":3})
 
-
     fig, ax = plt.subplots()
 
     # plot mean and error bar for each species
@@ -1095,6 +1117,9 @@ def dot_plot_resample(data, area=None, title=None, err="se", add_legend=False,
     plt.setp(ax.lines, zorder=100)
     plt.setp(ax.collections, zorder=100, label="")
 
+    # needed to prevent cut-off of dots near top of graph
+    plt.margins(0.15)
+
     # plot proportions w/ closed/open circles
     colors=["tab:blue", "tab:orange", "tab:blue", "tab:orange"]
     markers = ["o", "o", MarkerStyle('o', fillstyle="none"), MarkerStyle('o', fillstyle="none"), ]
@@ -1103,18 +1128,22 @@ def dot_plot_resample(data, area=None, title=None, err="se", add_legend=False,
         ax.scatter(x=df_temp["xaxis"], y=df_temp["proportion"], c=colors[i], marker=markers[i], s=100)
 
 
-    ax.set_xlabel("")
 
-    xtick_labels = ["MMus", "STeg", "MMus\nresampled", "STeg\nresampled"]
+    xtick_labels = ["MMus\nfull data", "STeg\nfull data", "MMus\ndownsampled", "STeg\ndownsampled"]
     ax.set_xticklabels(xtick_labels)
 
     plt.title(title, size=20)
     plt.ylim(ylim) # make sure y axis starts at 0
+    plt.xlabel(None)
+    plt.ylabel(ylabel)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
+
+    # rotate xtick labels
+    plt.xticks(rotation=45, ha='right', rotation_mode='anchor')
     
-    # #
-    # matplotlib.rcParams.update({'font.size': 22})
+    # increase text size
+    plt.rcParams.update({'font.size': 12})
     
     # set figure size
     fig = plt.gcf()
