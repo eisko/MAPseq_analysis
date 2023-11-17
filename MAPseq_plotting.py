@@ -195,6 +195,11 @@ def single_neuron_bar(df, neuron, figsize=(6.4, 0.5), label=None, ylim=1400,
     plt.bar(areas, values, color=cmap.colors[255])
     plt.text(-2, 0.55, label, va="center_baseline", size=12)
     # plt.ylim(0,ylim)
+
+    # hide top and right axes
+    ax = plt.gca()
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
     
     return(fig)
 
