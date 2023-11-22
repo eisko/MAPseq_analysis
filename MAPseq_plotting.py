@@ -102,7 +102,8 @@ def sorted_heatmap(df, title=None, sort_by=['type'], sort_ascend=True, drop=['ty
     plt.title(title)
     if label_neurons:
         for key in label_neurons.keys():
-            plt.text(-0.3,label_neurons[key], key+"-", va="center_baseline", size=12)
+            plt.text(-0.3,label_neurons[key], "-", va="center_baseline", size=15)
+            plt.text(-0.75,label_neurons[key], key, va="center_baseline", size=12)
     return(idx, fig)
     
 def single_neuron_heatmap(df, neuron, figsize=(6.4, 0.5), label=None, 
@@ -161,8 +162,9 @@ def single_neuron_line(df, neuron, figsize=(6.4, 0.5), label=None, ylim=1400,
     
     return(fig)
 
-def single_neuron_bar(df, neuron, figsize=(6.4, 0.5), label=None, ylim=1400,
-                          sort_by=['type'], drop=["OMCi", "type"], cmap=orange_cmp, col_order=None):
+def single_neuron_bar(df, neuron, figsize=(6.4, 0.5), label=None, ylim=1,
+                      row_norm=True, sort_by=['type'], drop=["OMCi", "type"], 
+                      cmap=orange_cmp, col_order=None):
     """_summary_
 
     Args:
@@ -191,10 +193,13 @@ def single_neuron_bar(df, neuron, figsize=(6.4, 0.5), label=None, ylim=1400,
 
     areas = plotn.columns.values
     values = plotn.iloc[0].values
-    values = values/values.max() # row normalized
+    if row_norm:
+        values = values/values.max() # row normalized
     plt.bar(areas, values, color=cmap.colors[255])
-    plt.text(-2, 0.55, label, va="center_baseline", size=12)
-    # plt.ylim(0,ylim)
+    plt.text(-2, ylim/2, label, va="center_baseline", size=12)
+
+    if ylim:
+        plt.ylim(0,ylim)
 
     # hide top and right axes
     ax = plt.gca()
@@ -497,8 +502,8 @@ def proportion_volcano_plot(df, title=None, labels="area", p_05=True, p_01=True,
     return(fig)
 
 def plot_volcano(df, x="log2_fc", y="nlog10_p", title=None, labels="area", shape=None,
-                 p_05=True, p_01=True, p_bf=None, xlim=(-2,2), legend_loc="upper left",
-                 fig_size=(4,4)):
+                 p_05=True, p_01=True, p_bf=None, xlim=(-2,2), ylim=(0,-np.log10(0.02)), 
+                 legend_loc="upper left", fig_size=(4,4)):
     """output volcano plot based on comparison of species proportional means
 
     Args:
@@ -561,13 +566,16 @@ def plot_volcano(df, x="log2_fc", y="nlog10_p", title=None, labels="area", shape
 
 
     for i in range(df.shape[0]):
-        plt.text(x=df.loc[i,"log2_fc"]+0.01,y=df.loc[i,"nlog10_p"]+0.01,s=df.loc[i, labels], 
+        plt.text(x=df.loc[i,x]+0.01,y=df.loc[i,y]+0.01,s=df.loc[i, labels], 
             fontdict=dict(color='black',size=10))
 
 
     plt.title(title, pad=12)
     # plt.xlabel('log2(fold change)')
-    plt.xlabel('$log_{2}$($\dfrac{STeg}{MMus}$)')
+    if x=="log2_fc":
+        plt.xlabel('$log_{2}$($\dfrac{STeg}{MMus}$)')
+    elif x=="fold_change":
+        plt.xlabel(r'$\dfrac{STeg}{MMus}$')
     plt.ylabel('$-log_{10}(p\ value)$')
 
     if legend_loc:
@@ -577,6 +585,12 @@ def plot_volcano(df, x="log2_fc", y="nlog10_p", title=None, labels="area", shape
 
     # apply axis limits
     plt.xlim(xlim)
+    plt.ylim(ylim)
+
+    # hide top and right axis
+    ax = plt.gca()
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
 
     plt.rcParams.update({'font.size': 12})
 
@@ -999,6 +1013,10 @@ def plot_cdf(data, plot_areas, log=True, title="", color_by="species", colors=[b
                 sns.lineplot(plot_1, x="x", y="cdf", ax=ax) # plots mean ci95
                 sns.lineplot(plot_2, x="x", y="cdf", ax=ax) # plots mean ci95
             
+            # get rid of top and right axis
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
             if log:
                 ax.set_xscale("log")
             ax.set_xlabel("Normalized Counts")
