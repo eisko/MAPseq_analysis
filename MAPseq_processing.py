@@ -783,6 +783,30 @@ def calc_cdf(data, plot_areas, cdf_val=0.5, meta=metadata):
 
     return(cdfn_df)
 
+def calc_medians(data, plot_areas, meta=metadata):
+    """generate df to plot w/ medians per area. Calculate median 
+    with non-zero values
+
+    Args:
+        data (dataset): List of barcode dataset
+        plot_areas (list): List of areas to return
+        meta (DataFrame, optional): metadata. Defaults to metadata.
+    """
+    all_dfs = []
+    for area in plot_areas:
+        med_df = meta.copy()
+        meds = []
+        for i in range(meta.shape[0]):
+            df = data[i]
+            med = df[area].replace(0,np.NaN).median()
+            meds.append(med)
+        med_df['median'] = meds
+        med_df['area'] = area
+        all_dfs.append(med_df)
+    
+    plot_df = pd.concat(all_dfs)
+
+    return(plot_df)
 
 def motif_simulation(data, plot_areas=["OMCc", "AUD", "STR"], reps=500, subset=None):
     """Given binary dataset (BC x area), permutate w/in column to break column dependence
