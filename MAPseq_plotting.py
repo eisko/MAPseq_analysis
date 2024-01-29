@@ -419,7 +419,9 @@ def dot_plot(data, area=None, title=None, err="se", add_legend=False,
     else:
         df = data.copy()
 
-
+    # get rid of values/rows if there are nan:
+    df = df.dropna()
+    
     # add column for xaxis plotting
     # df['xaxis'] = df['species'].replace({"MMus":0, "STeg":1, "MMus_resampled":2, "STeg_resampled":3})
 

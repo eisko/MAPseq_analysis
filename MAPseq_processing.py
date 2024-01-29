@@ -8,6 +8,8 @@ import seaborn as sns
 from M194_M220_metadata import *
 from scipy import stats
 
+from sklearn.preprocessing import binarize
+
 from itertools import combinations, chain
 from upsetplot import from_memberships
 from math import comb
@@ -73,7 +75,9 @@ def dfs_preprocess_counts(df_list, drop=["OMCi", "type"]):
     return out_list
 
 def df_combine_areas(df_list, to_drop = ['OB', 'ACAi', 'ACAc', 'HIP', 'L1_ctl', 'H2O_inj_ctl', 'H2O_targ_ctl', 'inj_site'],
-                      combine=["OMC", "STR", "PAG"], col_order=['OMCi', 'OMCc', 'AUD', 'STR', 'TH', 'HY', 'AMY', 'PAG', 'SNr', 'SCm', 'PG', 'RN'], binary=False):
+                      combine=["OMC", "STR", "PAG"], 
+                      col_order=['OMCi', 'OMCc', 'AUD', 'STR', 'TH', 'HY', 'AMY', 'PAG', 'SNr', 'SCm', 'PG', 'RN'], 
+                      rename=None):
     """Given list of dataframes, combine areas specified in 'combine' and output new list of dataframes
 
     Args:
@@ -81,7 +85,7 @@ def df_combine_areas(df_list, to_drop = ['OB', 'ACAi', 'ACAc', 'HIP', 'L1_ctl', 
         to_drop (list, optional): List of areas/columns to drop. Defaults to ['OB', 'ACAi', 'ACAc', 'HIP', 'L1_ctl', 'H2O_inj_ctl', 'H2O_targ_ctl', inj_site].
         combine (list, optional): List of areas to combine, must be OMC,STR,PAG. Defaults to ["OMC", "STR", "PAG"].
         col_order (list, optional): List of columns in order for final output. Defaults to
-        binary (bool, optional): Whether input file is binary or not. Defaults to False.
+        rename (dict, optional): Dictionary used to rename columns if needed. Defaults to None.
     """
 
     # drop unecessary columns
@@ -108,12 +112,21 @@ def df_combine_areas(df_list, to_drop = ['OB', 'ACAi', 'ACAc', 'HIP', 'L1_ctl', 
 
     df_out = [df[col_order] for df in df_combine]
 
+    # figure out if input is binarized, if so rebinarize
+    unique_vals = np.unique(df_list[0].values)
+    if len(unique_vals)==2:
+        df_out = [pd.DataFrame(binarize(df), columns=df.columns) for df in df_out]
+
+    # rename columns if specified
+    if rename:
+        df_out = [df.rename(columns=rename) for df in df_out]
+
     return(df_out)
 
 
-
-
-def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"], pt_areas=["AMY","HY","SNr","SCm","PG","PAG","BS"]):
+def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"],
+                      pt_areas=["AMY","HY","SNr","SCm","PG","PAG","BS"],
+                      sort=True):
     """
     Function takes in projection matrix and outputs matrix sorted by the 3 major celltypes:
     - IT = intratelencephalic (projects to cortical and/or Striatum), type = 10
@@ -125,6 +138,7 @@ def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"], pt_
     - it_areas=["OMCc", "AUD", "STR"]
     - ct_areas=["TH"]
     - pt_areas=["AMY","SNr","SCm","PG","PAG","BS"]
+    - sort = True, whether to sort by cell type or return with original index
     """
     
     ds=proj.copy()
@@ -142,23 +156,27 @@ def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"], pt_
     # Identify CT cells by thalamus projection
     th_idx = ds_npt['TH'] > 0
     ds_th = ds_npt[th_idx]
-    ds_th = ds_th.sort_values('TH', ascending=False)
+    if sort:
+        ds_th = ds_th.sort_values('TH', ascending=False)
     ds_th['type'] = "CT"
 
     # Identify IT cells by the remaining cells (non-PT, non-CT)
     ds_nth = ds_npt[~th_idx]
-    ds_nth = ds_nth.sort_values(it_areas,ascending=False)
+    if sort:
+        ds_nth = ds_nth.sort_values(it_areas,ascending=False)
     ds_nth['type'] = "IT"
 
     # combine IT and CT cells
     ds_npt = pd.concat([ds_nth, ds_th])
 
     # combine IT/CT and PT cells
-    sorted = pd.concat([ds_npt,ds_pt],ignore_index=True)
+    if sort:
+        sorted = pd.concat([ds_npt,ds_pt],ignore_index=True)
+        df_out=sorted.reset_index(drop=True)
+    else:
+        df_out = pd.concat([ds_npt,ds_pt]).sort_index()
 
-    sorted=sorted.reset_index(drop=True)
-    
-    return sorted
+    return(df_out)
 
 
 def dfs_to_node_proportions(df_list, drop=["OMCi", "type"], keep=None, cell_type=None, meta=metadata, inj_site="OMCi"):
@@ -716,7 +734,8 @@ def dfs_to_cdf(df_list, plot_areas, resolution=1000, metadata=metadata):
 def dfs_to_medians(df_list, drop=["AOMCi", "POMCi", "ACAi", "ACAc", "OB", "HIP", "inj_site", 
                                   'L1_ctl', 'H2O_inj_ctl', 'H2O_targ_ctl'], 
                    keep=None, cell_type=None, meta=metadata, inj_site="OMCi"):
-    """Output dataframe of medians in format that can be plotted with seaborn
+    
+    """Output dataframe of medians in format that can be plotted with seaborn"
 
     Args:
         df_list (list): 
@@ -761,7 +780,7 @@ def dfs_to_medians(df_list, drop=["AOMCi", "POMCi", "ACAi", "ACAc", "OB", "HIP",
         "mice":mice[i], "species":species[i], "dataset":dataset[i]})
         plot_df = pd.concat([plot_df, df_add])
     
-    return plot_df
+    return(plot_df)
 
 def calc_cdf(data, plot_areas, cdf_val=0.5, meta=metadata):
     """_summary_
