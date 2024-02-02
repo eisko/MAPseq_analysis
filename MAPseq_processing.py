@@ -46,22 +46,32 @@ def clean_up_data(df_dirty, to_drop = ['OB', 'ACAi', 'ACAc', 'HIP'], inj_site="O
     return clean
 
 
-def dfs_preprocess_counts(df_list, drop=["OMCi", "type"]):
-    """INPUT: Takes list of dataframe(s) that are normalized counts (counts normalized to spike-in RNA),
-                disregards values in columns specified by `drop`
-       OUTPUT: Returns list of dataframe(s) where each dataframe is normalized to its dataframe median
+def dfs_preprocess_counts(df_list, drop=["type"], 
+                          norm_by="inj_median", inj_site="OMCi"):
+    """Take dataframe and process it for downstream analysis. Can be binarized or 
+    non-binarized data.
 
     Args:
-        df_list (list)  | List of dataframes of ncounts
-        drop (list)     | List of columns to drop and not account for when determining median
+        df_list (list): List of dataframes, 
+        drop (list, optional): List of columns to drop before returning. Defaults to ["OMCi", "type"].
+        norm_by (str, optional): How to normalize counts. Can be "inj_median" or 'all_median'. Defaults to "inj_median".
+        inj_site (str, optional): What column to use for injection norm. Defaults to "OMCi".
 
-    returns:
-        out_list (list): List of dataframes normalized to dataframe median
+    Returns:
+        out_list (list): List of dataframes same order as input list.
     """
+    
     out_list = []
     for i in range(len(df_list)):
         df = df_list[i].drop(drop, axis=1)
-        vals = df.values.flatten()
+
+        # normalize by non-zero median of injection site
+        if norm_by=="inj_median":
+            vals = df[inj_site].values.flatten()
+        # normalize by median of all non-zero values median across whole dataset
+        elif norm_by=="all_median":
+            vals = df.values.flatten()
+
         idx = vals.nonzero() # only use non-zero ncounts for determining median
         plot = vals[idx]
         median = np.median(plot)
