@@ -69,7 +69,7 @@ def individ_node_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequ
     return(fig)
 
 def sorted_heatmap(df, title=None, sort_by=['type'], sort_ascend=True, drop=['type'], 
-                   nsample=None, random_state=10, norm=None, cmap=orange_cmp, cbar=False,
+                   nsample=None, random_state=10, log=False, cmap=orange_cmp, cbar=False,
                    label_neurons=None, col_order=None, rasterized=True):
     """_summary_
 
@@ -80,7 +80,7 @@ def sorted_heatmap(df, title=None, sort_by=['type'], sort_ascend=True, drop=['ty
         drop (list, optional): What columns to drop before plotting. Defaults to ['type'].
         nsample (int, optional): If present, down sample dataframe. Defaults to None.
         random_state (int, optional): If downsample, what random state to use. Defaults to 10.
-        norm (optional): What normalization to use (e.g. LogNorm()). Defaults to None.
+        log (bool, optional): Whether to plot log scale. Defaults to None.
         cmap (colormap, optional): What colormap to use for plotting. Defaults orange_cmp.
         cbar (boolean, optional): Whether to plot cbar or not. Defaults to False.
         label_neurons (dict, option): Dictionary of label:index of neurons to label
@@ -93,10 +93,17 @@ def sorted_heatmap(df, title=None, sort_by=['type'], sort_ascend=True, drop=['ty
     else:
         plot = df.copy()
 
-    plot = plot.replace({"IT":0.25, "CT":0.5, "PT":0.75})
+    if log:
+        plot = plot.replace({"IT":1, "CT":10, "PT":100})
+        norm = LogNorm()
+    else:
+        plot = plot.replace({"IT":0.25, "CT":0.5, "PT":0.75})
+        norm = None
+
     plot = plot.sort_values(by=sort_by, ascending=sort_ascend)
-    idx = plot.index
     plot = plot.reset_index(drop=True)
+    out_plot = plot.copy()
+
 
     # reorder cols if given
     if col_order:
@@ -110,7 +117,7 @@ def sorted_heatmap(df, title=None, sort_by=['type'], sort_ascend=True, drop=['ty
         for key in label_neurons.keys():
             plt.text(-0.3,label_neurons[key], "-", va="center_baseline", size=15)
             plt.text(-0.75,label_neurons[key], key, va="center_baseline", size=12)
-    return(idx, fig)
+    return(out_plot, fig)
 
 
 def single_neuron_bar(df, neuron, figsize=(6.4, 0.5), label=None, ylim=[0,1],
@@ -731,7 +738,7 @@ def stvmm_area_scatter_individ(data, data_prop, title="", log=False,
 
 
 def plot_cdf(data, plot_areas, log=True, title="", color_by="species", colors=[blue_cmp.colors[255], orange_cmp.colors[255]],
-             individual=True, meta=metadata, legend=True, fig_size=(3,3)):
+             individual=True, meta=metadata, legend=True, fig_size=(3,3), calc_cdf=True):
     """Takes in countN data and returns cdf plots
 
     Args:
@@ -743,11 +750,15 @@ def plot_cdf(data, plot_areas, log=True, title="", color_by="species", colors=[b
         colors (list, optional): colors used to label cdfs. Defaults to [blue_cmp.colors[255], orange_cmp.colors[255]].
         individual (bool, optional): _description_. Defaults to True.
         meta (_type_, optional): _description_. Defaults to metadata.
+        calc_cdf (bool, optional): Whether to calcualte cdf or not. Defaults to True.
     """
 
 
     # calculate ecdf per animal and put into dataframe
-    cdf_df, foo = dfs_to_cdf(data, plot_areas=plot_areas, metadata=meta)
+    if calc_cdf:
+        cdf_df, foo = dfs_to_cdf(data, plot_areas=plot_areas, metadata=meta)
+    else:
+        cdf_df = data.copy()
 
     # calculate number of axes needed
     n = math.ceil(len(plot_areas)/5) # round up divide by 4 = axs rows

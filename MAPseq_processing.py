@@ -880,7 +880,7 @@ def motif_simulation(data, plot_areas=["OMCc", "AUD", "STR"], reps=500, subset=N
 
     return(motif_list, simulations)
 
-def resample_neurons(data, metadata=metadata, random_state=10, species="MMus", sample_ns=None):
+def resample_neurons(data, meta=metadata, random_state=10, species="MMus", sample_ns=None):
     """Given list of dataframe, sample from combined neurons/cells (with replacement), in equivalent numbers
     to singing mouse (or sample_ns) cells/brain. Returns list where each element is dataframe of neurons w/ numbers equivalent to ns.
 
@@ -920,3 +920,69 @@ def resample_neurons(data, metadata=metadata, random_state=10, species="MMus", s
         samp.append(int.reset_index(drop=True))
 
     return(samp)
+
+
+def dfs_to_cdf_proportions(df_list, plot_areas, reps=1000, meta=metadata,
+                           n_neurons=300, random_state=10, log=False):
+    """Give dataset, downsample neurons and calcualte proportion repeatedly, calculate
+        ecdf for samples. Output dataframe that can be plotted with plot_cdf() function.
+
+    Args:
+        df_list (list): List of pandas dataframes w/ binary data
+        plot_areas (list): List of areas to calcualte cdfs for.
+        reps (int, optional): Number of times to downsample. Defaults to 1000.
+        metadata (DataFrame, optional): metadata for df_list. Defaults to metadata.
+        n_neurons (int, optional): Amount to downsample. Defaults to 300.
+        random_state (int, optional): Used to generate repeatable sampling. Defaults to 10.
+        log (bool, optional): Whether to calcualte cdf on log scale or linear scale. Defaults to False.
+    """
+    all_ecdfs = {}
+    cdf_df = pd.DataFrame(columns=["area", "x", "cdf", "mice", "species"])
+    for area in plot_areas:
+            
+        ecdfs = []
+        maxs = []
+        mins = []
+
+        # sample and find ecdf per animal
+        for i in range(meta.shape[0]):
+
+            df = df_list[i].copy()
+
+            sampled_list = []
+            for j in range(reps):
+                sample = df.sample(n_neurons, random_state=random_state+j) # can't have same random_state for every round or will sample the same neurons
+                sampled_list.append(sample)
+
+            df_area = [dfi.sum()[area] for dfi in sampled_list]
+            df_area = np.array(df_area)/n_neurons
+            maxs.append(np.max(df_area))
+            mins.append(np.min(df_area))
+
+            # calculate ecdf based on sampled data
+            ecdfs.append(ECDF(df_area))
+
+        # calc overall max/min
+        max_bound = max(maxs)
+        min_bound = min(mins)
+
+        if log:
+            x = np.logspace(np.log10(min_bound+0.01), np.log10(max_bound), num=reps)
+        else:
+            x = np.linspace(min_bound, max_bound, num=reps)
+
+
+        area_cdf_df = pd.DataFrame(columns=cdf_df.columns)
+        for i in range(meta.shape[0]):
+            cdf = ecdfs[i](x)
+            int_df = pd.DataFrame({"area":area, "x":x, "cdf":cdf, 
+                                   "mice":meta.loc[i,"mice"], 
+                                   "species":meta.loc[i,"species"]})
+            area_cdf_df = pd.concat([area_cdf_df, int_df])
+
+        cdf_df = pd.concat([cdf_df, area_cdf_df])
+        all_ecdfs[area] = ecdfs
+        
+
+    return(cdf_df, all_ecdfs)
+
