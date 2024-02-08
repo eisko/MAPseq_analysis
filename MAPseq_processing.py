@@ -389,7 +389,7 @@ def dfs_to_mean_BC_per_neuron(df_list, drop=['type'], keep=None, cell_type=None,
     
     return plot_df
 
-def proportion_ttest(df, sp1="MMus", sp2="STeg", to_plot='proportion'):
+def proportion_ttest(df, sp1="MMus", sp2="STeg", to_plot='proportion', groupby="area"):
     """output dataframe based on comparison of species proportional means
         output dataframe can be used for making volcano plot
 
@@ -397,22 +397,18 @@ def proportion_ttest(df, sp1="MMus", sp2="STeg", to_plot='proportion'):
         df (pd.DataFrame): output of dfs_to_proportions
     """
 
-    areas = sorted(df['area'].unique())
-
-    # for area in areas:
-    #     area_df = df[df['area']==area]
-    #     mean = df.groupby('area', sort = False, as_index=False)['proportion'].mean()
+    groups = sorted(df[groupby].unique())
 
     # sp1
     sp1_df = df[df["species"]==sp1]
-    sp1_array = sp1_df.pivot(columns='mice', values=to_plot, index='area').values
+    sp1_array = sp1_df.pivot(columns='mice', values=to_plot, index=groupby).values
 
     sp2_df = df[df["species"]==sp2]
-    sp2_array = sp2_df.pivot(columns='mice', values=to_plot, index='area').values
+    sp2_array = sp2_df.pivot(columns='mice', values=to_plot, index=groupby).values
 
     results = stats.ttest_ind(sp1_array, sp2_array, axis=1)
     p_vals = results[1]
-    plot = pd.DataFrame({"area":areas, "p-value":p_vals})
+    plot = pd.DataFrame({groupby:groups, "p-value":p_vals})
     plot[sp1+"_mean"] = sp1_array.mean(axis=1)
     plot[sp2+"_mean"] = sp2_array.mean(axis=1)
     # plot["effect_size"] = (plot["st_mean"]-plot["mm_mean"]) / (plot["st_mean"] + plot["mm_mean"]) # modulation index
@@ -519,11 +515,20 @@ def df_to_calc_pab_proportions(data, combinations):
 
     # calculate expected motif proportion based on product of bulk proportions
     pab_proportions = []
+    names = combinations.names
     for i in range(combinations.shape[0]):
-        combos_bulk = bulk_prop[list(combinations[i])]
-        product = 1
-        for j in combos_bulk:
-            product = product*j
+        motif = combinations[i]
+
+        # if single projecting, square bulk prob
+        if sum(motif)==1:
+            for j in range(len(names)):
+                if motif[j]:
+                    product = bulk_prop[names[j]]*bulk_prop[names[j]]
+        else:
+            product = 1
+            for j in range(len(names)):
+                if motif[j]:
+                    product = product*bulk_prop[names[j]]
         
         pab_proportions.append(product)
 
@@ -846,7 +851,7 @@ def motif_simulation(data, plot_areas=["OMCc", "AUD", "STR"], reps=500, subset=N
     Args:
         data (DataFrame): Dataframe of neurons x area (often concatenated data per species)
         plot_areas (list, optional): area to use to make motive combinations. Defaults to ["OMCc", "AUD", "AUD"].
-        reps (int, optional): Number of permutations to simulate. Defaults to 100.
+        reps (int, optional): Number of permutations to simulate. Defaults to 500.
         seed (int, optional): Seed to set random state for reproducible results. Defaults to 10.
     """
 
@@ -861,24 +866,25 @@ def motif_simulation(data, plot_areas=["OMCc", "AUD", "STR"], reps=500, subset=N
         shuffle_prop_reps.append(comb_prop)
 
 
-    area_comb = []
-    for i in range(len(plot_areas)):
-        n = i+1
-        area_comb.append(list(combinations(plot_areas, n)))
-    motif_list = list(chain.from_iterable(area_comb)) # flatten list
+    # area_comb = []
+    # for i in range(len(plot_areas)):
+    #     n = i+1
+    #     area_comb.append(list(combinations(plot_areas, n)))
+    # motif_list = list(chain.from_iterable(area_comb)) # flatten list
 
 
-    simulations = np.array(shuffle_prop_reps)
-    # print("simulations.shape pre subset: ,", simulations.shape)
-    # if subset specified, extract motifs that project to area specified
-    if subset:
-        motif_areas = comb_prop.index.names
-        subset_idx = motif_areas.index(subset)
-        idx = [i for i, x in enumerate(comb_prop.index) if x[subset_idx]]
-        motif_list = [motif_list[i] for i in idx]
-        simulations = simulations[:,idx]
+    # simulations = np.array(shuffle_prop_reps)
+    # # print("simulations.shape pre subset: ,", simulations.shape)
+    # # if subset specified, extract motifs that project to area specified
+    # if subset:
+    #     motif_areas = comb_prop.index.names
+    #     subset_idx = motif_areas.index(subset)
+    #     idx = [i for i, x in enumerate(comb_prop.index) if x[subset_idx]]
+    #     motif_list = [motif_list[i] for i in idx]
+    #     simulations = simulations[:,idx]
 
-    return(motif_list, simulations)
+    # return(motif_list, simulations)
+    return(shuffle_prop_reps)
 
 def resample_neurons(data, meta=metadata, random_state=10, species="MMus", sample_ns=None):
     """Given list of dataframe, sample from combined neurons/cells (with replacement), in equivalent numbers

@@ -23,7 +23,7 @@ import upsetplot
 
 
 def dot_bar_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequency", 
-                 hueaxis="Species", errorbar="se"):
+                 hueaxis="Species", errorbar="se", dot_size=3):
     """
     Function to take pandas dataframe and plot individual values and mean/sem values
     Intent to use for plotting nodes by frequency (in fraction of neurons)
@@ -35,7 +35,7 @@ def dot_bar_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequency"
         title (str): plot title
     """
     fig = plt.subplot()
-    sns.stripplot(df, x=xaxis, y=yaxis, hue=hueaxis, dodge=True, jitter=False, size=3)
+    sns.stripplot(df, x=xaxis, y=yaxis, hue=hueaxis, dodge=True, jitter=False, size=dot_size)
     t_ax = sns.barplot(df, x=xaxis, y=yaxis, hue=hueaxis, errorbar=errorbar, errwidth=1)
     for patch in t_ax.patches:
         clr = patch.get_facecolor()
@@ -466,8 +466,8 @@ def fold_change_ranked(plot, title=None, suptitle=None,
     plt.ylabel("Log2(r'\frac{Steg}{\MMus}$')")
     return(fig)
 
-def stvmm_area_scatter(data, title="", to_plot="proportion", log=False, 
-                       err="sem", ax_limits=None,
+def stvmm_area_scatter(data, title="", to_plot="proportion", groupby="area",
+                       log=False, err="sem", ax_limits=None,
                        sp1="STeg", sp2="MMus", line_up_limit=1):
     """Plots lab mouse v. singing mouse scatter w/ unity line
 
@@ -481,16 +481,16 @@ def stvmm_area_scatter(data, title="", to_plot="proportion", log=False,
     data_mm = data[data["species"]==sp2]
 
     # calculate means
-    st_mean = data_st.groupby("area").mean(numeric_only=True)
-    mm_mean = data_mm.groupby("area").mean(numeric_only=True)
+    st_mean = data_st.groupby(groupby).mean(numeric_only=True)
+    mm_mean = data_mm.groupby(groupby).mean(numeric_only=True)
 
     # calculate error
     if err=="sem":
-        st_err = data_st.groupby("area").sem(numeric_only=True)
-        mm_err = data_mm.groupby("area").sem(numeric_only=True)
+        st_err = data_st.groupby(groupby).sem(numeric_only=True)
+        mm_err = data_mm.groupby(groupby).sem(numeric_only=True)
     elif err=="std":
-        st_err = data_st.groupby("area").std(numeric_only=True)
-        mm_err = data_mm.groupby("area").std(numeric_only=True)
+        st_err = data_st.groupby(groupby).std(numeric_only=True)
+        mm_err = data_mm.groupby(groupby).std(numeric_only=True)
 
 
     fig = plt.subplot()
