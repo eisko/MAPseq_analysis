@@ -36,7 +36,7 @@ def dot_bar_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequency"
     """
     fig = plt.subplot()
     sns.stripplot(df, x=xaxis, y=yaxis, hue=hueaxis, dodge=True, jitter=False, size=dot_size)
-    t_ax = sns.barplot(df, x=xaxis, y=yaxis, hue=hueaxis, errorbar=errorbar, errwidth=1)
+    t_ax = sns.barplot(df, x=xaxis, y=yaxis, hue=hueaxis, errorbar=errorbar, err_kws={'linewidth': 1})
     for patch in t_ax.patches:
         clr = patch.get_facecolor()
         patch.set_edgecolor(clr)

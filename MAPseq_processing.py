@@ -518,17 +518,14 @@ def df_to_calc_pab_proportions(data, combinations):
     names = combinations.names
     for i in range(combinations.shape[0]):
         motif = combinations[i]
+        product = 1
 
-        # if single projecting, square bulk prob
-        if sum(motif)==1:
-            for j in range(len(names)):
-                if motif[j]:
-                    product = bulk_prop[names[j]]*bulk_prop[names[j]]
-        else:
-            product = 1
-            for j in range(len(names)):
-                if motif[j]:
-                    product = product*bulk_prop[names[j]]
+    
+        for j in range(len(names)):
+            if motif[j]: # if area in motif, multiply by bulk probability
+                product = product * bulk_prop[names[j]]
+            else: # if area not in motif, multiply by 1-bulk probability (chance of not projecting to area)
+                product = product * (1-bulk_prop[names[j]])
         
         pab_proportions.append(product)
 
@@ -842,7 +839,8 @@ def calc_medians(data, plot_areas, meta=metadata):
 
     return(plot_df)
 
-def motif_simulation(data, plot_areas=["OMCc", "AUD", "STR"], reps=500, subset=None):
+def motif_simulation(data, plot_areas=["OMCc", "AUD", "STR"], reps=500, proportion_out=True,
+                     subset=None):
     """Given binary dataset (BC x area), permutate w/in column to break column dependence
         Permutation reps defined by reps
         return array where dim0=simulation, and dim1=motif, and list of motifs that correspond to dim1
@@ -852,17 +850,21 @@ def motif_simulation(data, plot_areas=["OMCc", "AUD", "STR"], reps=500, subset=N
         data (DataFrame): Dataframe of neurons x area (often concatenated data per species)
         plot_areas (list, optional): area to use to make motive combinations. Defaults to ["OMCc", "AUD", "AUD"].
         reps (int, optional): Number of permutations to simulate. Defaults to 500.
-        seed (int, optional): Seed to set random state for reproducible results. Defaults to 10.
+        # seed (int, optional): Seed to set random state for reproducible results. Defaults to 10.
+        proportion_out (bool, optional): whether to return motif proportions or counts. Defaults to True.
     """
 
 
     # 1. random shuffle w/in columns to break dependence
     # 2. calculate freq of each motif
     # 3. repeat 1/2 for 100+ times
+    shuffles = []
     shuffle_prop_reps = []
     for n in range(reps):
-        shuffle = data.apply(lambda x: x.sample(frac=1).values) # added random_state so same across runs
-        comb_prop = df_to_motif_proportion(shuffle, areas=plot_areas, proportion=True)
+        shuffle = data.apply(lambda x: x.sample(frac=1).values)
+        shuffles.append(shuffle)
+        comb_prop = df_to_motif_proportion(shuffle, areas=plot_areas, 
+                                           proportion=proportion_out)
         shuffle_prop_reps.append(comb_prop)
 
 
@@ -884,7 +886,7 @@ def motif_simulation(data, plot_areas=["OMCc", "AUD", "STR"], reps=500, subset=N
     #     simulations = simulations[:,idx]
 
     # return(motif_list, simulations)
-    return(shuffle_prop_reps)
+    return(shuffles, shuffle_prop_reps)
 
 def resample_neurons(data, meta=metadata, random_state=10, species="MMus", sample_ns=None):
     """Given list of dataframe, sample from combined neurons/cells (with replacement), in equivalent numbers
@@ -992,3 +994,53 @@ def dfs_to_cdf_proportions(df_list, plot_areas, reps=1000, meta=metadata,
 
     return(cdf_df, all_ecdfs)
 
+def TF_to_motifs(index):
+    """Generate motif strings from True/False MultiIndex genreated by df_to_motif_proportion()
+
+    Args:
+        index (MultiIndex): True/False for area combinations
+    Returns:
+        array of strings for area combinations
+    """
+   
+    motifs_strings = []
+    for r in index:
+        motif = ""
+        for i in range(len(index.names)):
+            if r[i]:
+                motif = motif+index.names[i]+"_"
+        motifs_strings.append(motif)
+
+    return(motifs_strings)
+
+def estimate_N_total(df, plot_areas=["OMCc", "AUD", "STR"]):
+    """Given dataframe of binary BC x area, calcualte estimated original N_total from 
+    N_observed and N of different area motifs
+
+    Returns: integer of estimated N_total (rounded)
+
+    Args:
+        df (DataFrame): Binarized BC x area data
+    """
+
+    # get n_obs
+    n_obs = df.shape[0]
+    n_areas = [df.sum()[area] for area in plot_areas]
+    
+    # derived from t_total formula from Han et al., 2017
+    # written out for 3 areas
+    a = (n_obs - n_areas[0]-n_areas[1]-n_areas[2])
+    b = (n_areas[0]*n_areas[1] + n_areas[0]*n_areas[2] + n_areas[1]*n_areas[2])
+    c = -1*(n_areas[0]*n_areas[1]*n_areas[2])
+
+    # solve for n_total with quadratic formula
+    roots = np.roots([a,b,c])
+
+    if roots[0] > n_obs:
+        n_total = round(roots[0])
+    elif roots[1] > n_obs:
+        n_total = round(roots[1])
+    else:
+        n_total = "roots equal or less than n_obs"
+
+    return(n_total)
