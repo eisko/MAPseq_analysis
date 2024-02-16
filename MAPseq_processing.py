@@ -495,23 +495,35 @@ def df_to_motif_proportion(df, areas, proportion=True, subset=None):
 
     return(plot_s)
 
-def df_to_calc_pab_proportions(data, combinations):
+def df_to_calc_pab_proportions(data, combinations, adjust_total=False):
     """Given dataframe of cells and index of combinations (generated from df_to_motif_prportions),
     return series similar to output for df_to_motif_proportions
 
     Args:
         data (DataFrame): DataFrame of BC x areas, binary
         combinations (MultiIndex): Index from output of df-to_motif_proportions
+        adjust_total (bool): whether to adjust the matrix w/ unobserved neurons. Defaults to False.
     """
+
+    # adjust n_total (add in 0 projectors), if not done
+    if adjust_total:
+        # calculate n_total
+        n_obs = data.shape[0]
+        n_total = estimate_n_total(data, combinations.names)
+        n_unobs = np.array(n_total )- np.array(n_obs)
+        unobs_df = pd.DataFrame(0, index=np.arange(n_unobs), columns=data.columns)
+        df = pd.concat([data, unobs_df]).reset_index(drop=True)
+    else:
+        df = data.copy()
 
     # get brain areas specified in combinations
     names = list(combinations.names)
     
-    # subset data to just columns used in motifs
-    data_subset = data.loc[:,names]
+    # subset df to just columns used in motifs
+    df_subset = df.loc[:,names]
 
     # get bulk proportions across those areas
-    bulk_prop = data_subset.sum(axis=0)/data.shape[0]
+    bulk_prop = df_subset.sum(axis=0)/df.shape[0]
 
     # calculate expected motif proportion based on product of bulk proportions
     pab_proportions = []
@@ -1013,34 +1025,86 @@ def TF_to_motifs(index):
 
     return(motifs_strings)
 
-def estimate_N_total(df, plot_areas=["OMCc", "AUD", "STR"]):
-    """Given dataframe of binary BC x area, calcualte estimated original N_total from 
-    N_observed and N of different area motifs
+# def estimate_N_total(df, plot_areas=["OMCc", "AUD", "STR"]):
+#     """Given dataframe of binary BC x area, calcualte estimated original N_total from 
+#     N_observed and N of different area motifs
 
-    Returns: integer of estimated N_total (rounded)
+#     Returns: integer of estimated N_total (rounded)
+
+#     Args:
+#         df (DataFrame): Binarized BC x area data
+#     """
+
+#     # get n_obs
+#     n_obs = df.shape[0]
+#     n_areas = [df.sum()[area] for area in plot_areas]
+    
+#     # derived from t_total formula from Han et al., 2017
+#     # written out for 3 areas
+#     a = (n_obs - n_areas[0]-n_areas[1]-n_areas[2])
+#     b = (n_areas[0]*n_areas[1] + n_areas[0]*n_areas[2] + n_areas[1]*n_areas[2])
+#     c = -1*(n_areas[0]*n_areas[1]*n_areas[2])
+
+#     # solve for n_total with quadratic formula
+#     roots = np.roots([a,b,c])
+
+#     if roots[0] > n_obs:
+#         n_total = round(roots[0])
+#     elif roots[1] > n_obs:
+#         n_total = round(roots[1])
+#     else:
+#         n_total = "roots equal or less than n_obs"
+
+#     return(n_total)
+
+def estimate_n_total(df, plot_areas):
+    """Calculate estimated N_total based on observed number of neuron per areas.
+       Works with IT and PT areas with as many areas as wanted. See Han et al., 2017
+       for more detail/formula.
 
     Args:
-        df (DataFrame): Binarized BC x area data
+        df (DataFrame): Binary matrix of BC x areas
+        areas (list): List of areas using to calculat motifs. Should be list of strings.
     """
-
-    # get n_obs
     n_obs = df.shape[0]
-    n_areas = [df.sum()[area] for area in plot_areas]
-    
-    # derived from t_total formula from Han et al., 2017
-    # written out for 3 areas
-    a = (n_obs - n_areas[0]-n_areas[1]-n_areas[2])
-    b = (n_areas[0]*n_areas[1] + n_areas[0]*n_areas[2] + n_areas[1]*n_areas[2])
-    c = -1*(n_areas[0]*n_areas[1]*n_areas[2])
+    n_areas = df.sum()
+    all_terms = []
+    for k in range(1, len(plot_areas)+1):
+        combos = list(combinations(plot_areas, k))
+        term = 0
+        for i in range(len(combos)):
+            product = 1
+            for j in range(len(combos[i])):
+                n_area = n_areas[combos[i][j]]
+                product = product*n_area
+            term = term + product
+        all_terms.append(term)
 
-    # solve for n_total with quadratic formula
-    roots = np.roots([a,b,c])
+    # need to subtract first term from n_obs
+    all_terms[0] = n_obs - all_terms[0]
 
-    if roots[0] > n_obs:
-        n_total = round(roots[0])
-    elif roots[1] > n_obs:
-        n_total = round(roots[1])
+    # multiply every other by -1 starting w/ 3rd term
+    for l in range(len(all_terms)):
+        if l>=2 and l%2==0:
+            all_terms[l] = -1*all_terms[l]
+
+    # find roots of polynomial
+    roots = np.roots(all_terms)
+
+    # convert to real numbers if numbers complex
+    if isinstance(roots[0],complex):
+        reals = []
+        for num in roots:
+            if num.imag==0:
+                reals.append(num.real)
     else:
-        n_total = "roots equal or less than n_obs"
+        reals = roots.copy()
+
+    # pick root that is more than n_obs
+    # if can't find root more than n_obs, return n_obs as n_total
+    n_total = n_obs
+    for num in reals:
+        if num > n_obs:
+            n_total = round(num)
 
     return(n_total)

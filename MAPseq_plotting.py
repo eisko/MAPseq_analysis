@@ -22,27 +22,40 @@ from matplotlib.markers import MarkerStyle # used to plot open circles
 import upsetplot
 
 
-def dot_bar_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequency", 
-                 hueaxis="Species", errorbar="se", dot_size=3):
-    """
-    Function to take pandas dataframe and plot individual values and mean/sem values
-    Intent to use for plotting nodes by frequency (in fraction of neurons)
+def dot_bar_plot(df, title=None, xaxis="Node Degree", yaxis="Normalized Frequency", 
+                 hueaxis="species", errorbar="se", dot_size=3, order=None,
+                 alpha=0.5):
+    """Plot Bar of mean and se, and dot plot of individual mice values.
 
     Args:
-        df (pandas.core.frame.DataFrame): pandas dataframe where rows are nodes and columns are:
-         'Node Degreee', 'Normalized Frequency', 'Species', and 'mouse'
-         - See output of df_to_nodes
-        title (str): plot title
+        df (DataFrame): Plot dataframe in seaborn format.
+        title (str, optional): Plot title. Defaults to "".
+        xaxis (str, optional): Column to plot on x axis (categorical). Defaults to "Node Degree".
+        yaxis (str, optional): Column to plot on y axis (quantitative). Defaults to "Normalized Frequency".
+        hueaxis (str, optional): Column to plot/color by. Defaults to "species".
+        errorbar (str, optional): Errorbar to plot based on individual values. Defaults to "se".
+        dot_size (int, optional): dot size... Defaults to 3.
+        order (index/list, optional): Specified order to plot xaxis values. Defaults to None.
+        alpha (float, optional): Set transparency of bars. Defaults to 0.5.
     """
     fig = plt.subplot()
-    sns.stripplot(df, x=xaxis, y=yaxis, hue=hueaxis, dodge=True, jitter=False, size=dot_size)
-    t_ax = sns.barplot(df, x=xaxis, y=yaxis, hue=hueaxis, errorbar=errorbar, err_kws={'linewidth': 1})
-    for patch in t_ax.patches:
-        clr = patch.get_facecolor()
-        patch.set_edgecolor(clr)
-        patch.set_facecolor((0,0,0,0))
-    plt.setp(t_ax.patches, linewidth=1)
+    sns.stripplot(df, x=xaxis, y=yaxis, hue=hueaxis, dodge=True, jitter=False, 
+                  size=dot_size, order=order)
+    t_ax = sns.barplot(df, x=xaxis, y=yaxis, hue=hueaxis, errorbar=errorbar, 
+                       err_kws={'linewidth': 1}, order=order, alpha=alpha)
+    
+    # use following to plot outline rather than filled bar
+    # for patch in t_ax.patches:
+    #     clr = patch.get_facecolor()
+    #     patch.set_edgecolor(clr)
+    #     patch.set_facecolor((0,0,0,0))
+    # plt.setp(t_ax.patches, linewidth=1)
     plt.title(title, size=18)
+
+    # hide top and right axes
+    ax = plt.gca()
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
 
     return(fig)
 
