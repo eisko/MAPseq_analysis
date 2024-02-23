@@ -852,7 +852,7 @@ def calc_medians(data, plot_areas, meta=metadata):
     return(plot_df)
 
 def motif_simulation(data, plot_areas=["OMCc", "AUD", "STR"], reps=500, proportion_out=True,
-                     subset=None):
+                     subset=None, adjust_total=False):
     """Given binary dataset (BC x area), permutate w/in column to break column dependence
         Permutation reps defined by reps
         return array where dim0=simulation, and dim1=motif, and list of motifs that correspond to dim1
@@ -866,6 +866,16 @@ def motif_simulation(data, plot_areas=["OMCc", "AUD", "STR"], reps=500, proporti
         proportion_out (bool, optional): whether to return motif proportions or counts. Defaults to True.
     """
 
+    # adjust n_total (add in 0 projectors), if not done
+    if adjust_total:
+        # calculate n_total
+        n_obs = data.shape[0]
+        n_total = estimate_n_total(data, plot_areas)
+        n_unobs = np.array(n_total )- np.array(n_obs)
+        unobs_df = pd.DataFrame(0, index=np.arange(n_unobs), columns=data.columns)
+        df = pd.concat([data, unobs_df]).reset_index(drop=True)
+    else:
+        df = data.copy()
 
     # 1. random shuffle w/in columns to break dependence
     # 2. calculate freq of each motif
@@ -873,7 +883,7 @@ def motif_simulation(data, plot_areas=["OMCc", "AUD", "STR"], reps=500, proporti
     shuffles = []
     shuffle_prop_reps = []
     for n in range(reps):
-        shuffle = data.apply(lambda x: x.sample(frac=1).values)
+        shuffle = df.apply(lambda x: x.sample(frac=1).values)
         shuffles.append(shuffle)
         comb_prop = df_to_motif_proportion(shuffle, areas=plot_areas, 
                                            proportion=proportion_out)
