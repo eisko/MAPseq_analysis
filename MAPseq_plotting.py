@@ -59,7 +59,7 @@ def dot_bar_plot(df, title=None, xaxis="Node Degree", yaxis="Normalized Frequenc
 
     return(fig)
 
-def individ_node_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequency"):
+def individ_node_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequency", order=None):
     """Plot connected dots for individual mice colored by species
 
     Args:
@@ -70,16 +70,33 @@ def individ_node_plot(df, title="", xaxis="Node Degree", yaxis="Normalized Frequ
                                - should also contain column labelled "mouse" w/ mouse identiy
     """
     fig = plt.subplot()
-    sns.scatterplot(df[df['Species']=="MMus"], x=xaxis, y=yaxis, style="Dataset")
-    sns.lineplot(df[df['Species']=="MMus"], x=xaxis, y=yaxis, style="mouse", alpha=0.5)
-    sns.scatterplot(df[df['Species']=="STeg"], x=xaxis, y=yaxis, style="Dataset", color="orange", legend=False)
-    sns.lineplot(df[df['Species']=="STeg"], x=xaxis, y=yaxis, style="mouse", alpha=0.5)
+    sns.scatterplot(df[df['species']=="MMus"], x=xaxis, y=yaxis, style="mice")
+    sns.lineplot(df[df['species']=="MMus"], x=xaxis, y=yaxis, style="mice", alpha=0.5)
+    sns.scatterplot(df[df['species']=="STeg"], x=xaxis, y=yaxis, color="orange", style="mice")
+    sns.lineplot(df[df['species']=="STeg"], x=xaxis, y=yaxis, style="mice", alpha=0.5)
     plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
-    plt.text(2.75, 0.8, "MMus", color=sns.color_palette("tab10")[0]) # match blue to seaborn
-    plt.text(2.75, 0.76, "STeg", color=sns.color_palette("tab10")[1]) # match orange to default seaborn colors
+    # plt.text(2.75, 0.8, "MMus", color=sns.color_palette("tab10")[0]) # match blue to seaborn
+    # plt.text(2.75, 0.76, "STeg", color=sns.color_palette("tab10")[1]) # match orange to default seaborn colors
     plt.title(title)
 
     return(fig)
+
+def individual_mice_plot(df, title="", xaxis="motifs", yaxis="p_obs", order=None):
+    """
+
+    Args:
+        df (_type_): _description_
+        title (str, optional): _description_. Defaults to "".
+        xaxis (str, optional): _description_. Defaults to "motifs".
+        yaxis (str, optional): _description_. Defaults to "p_obs".
+        order (_type_, optional): _description_. Defaults to None.
+    """
+    fig = plt.subplot()
+    sns.stripplot(df, x=xaxis, y=yaxis, hue="species", order=order)
+
+    plt.title(title)
+    return(fig)
+
 
 def sorted_heatmap(df, title=None, sort_by=['type'], sort_ascend=True, drop=['type'], 
                    nsample=None, random_state=10, log=False, cmap=orange_cmp, cbar=False,
