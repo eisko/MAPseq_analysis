@@ -143,21 +143,21 @@ def sort_by_celltype(proj, it_areas=["OMCc", "AUD", "STR"], ct_areas=["TH"],
     - CT = corticalthalamic (projects to thalamus w/o projection to brainstem), type = 100
     - PT = pyramidal tract (projects to brainstem += other areas), type = 1000
     Returns single dataframe with cells sorted and labelled by 3 cell types (IT/CT/PT)
-    
-    default areas:
-    - it_areas=["OMCc", "AUD", "STR"]
-    - ct_areas=["TH"]
-    - pt_areas=["AMY","SNr","SCm","PG","PAG","BS"]
-    - sort = True, whether to sort by cell type or return with original index
+
+    Args:
+        proj (DataFrame): pd.DataFrame of BC x area. Entries can be normalized BC or binary.
+        it_areas (list, optional): Areas to determine IT cells. Defaults to ["OMCc", "AUD", "STR"].
+        ct_areas (list, optional): Areas to determine CT cells. Defaults to ["TH"]. Don't actually use this...
+        pt_areas (list, optional): Areas to determine PT cells. Defaults to ["AMY","HY","SNr","SCm","PG","PAG","BS"].
+        sort (bool, optional): Whether to sort by cell type or return w/ original index. Defaults to True.
     """
     
     ds=proj.copy()
  
-    # 1. isolate PT cells
+    # Isolate PT cells
     pt_counts = ds[pt_areas].sum(axis=1)
     pt_idx = ds[pt_counts>0].index
     ds_pt = ds.loc[pt_idx,:]
-    # ds_pt = ds_pt.sort_values(['PAG','AMY'], ascending=False)
     ds_pt['type'] = "PT"
 
     # Isolate remaining non-PT cells
