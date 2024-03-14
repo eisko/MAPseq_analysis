@@ -32,3 +32,16 @@ blue[:, 0] = np.linspace(1, 33/256, N) # R = 33
 blue[:, 1] = np.linspace(1, 64/256, N) # G = 64
 blue[:, 2] = np.linspace(1, 154/256, N)  # B = 154
 blue_cmp = ListedColormap(blue)
+
+# same green as IT
+green_it = np.ones((N, 4))
+green_it[:, 0] = np.linspace(1, 45/256, N) # R = 45
+green_it[:, 1] = np.linspace(1, 157/256, N) # G = 157
+green_it[:, 2] = np.linspace(1, 72/256, N)  # B = 72
+green_it_cmp = ListedColormap(green_it)
+
+purple_pt = np.ones((N, 4))
+purple_pt[:, 0] = np.linspace(1, 143/256, N) # R = 143
+purple_pt[:, 1] = np.linspace(1, 104/256, N) # G = 104
+purple_pt[:, 2] = np.linspace(1, 169/256, N)  # B = 169
+purple_pt_cmp = ListedColormap(purple_pt)

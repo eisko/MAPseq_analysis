@@ -241,7 +241,8 @@ def dfs_to_node_proportions(df_list, drop=["OMCi", "type"], keep=None, cell_type
     
     return plot_df
 
-def dfs_to_proportions(df_list, drop=["OMCi", "type"], keep=None, cell_type=None, meta=metadata, inj_site="OMCi", aud_rename=False):
+def dfs_to_proportions(df_list, drop=["OMCi", "type"], keep=None, cell_type=None, meta=metadata, 
+                       inj_site="OMCi", aud_rename=False):
     """Output dataframe of proportions in format that can be plotted with seaborn
 
     Args:
